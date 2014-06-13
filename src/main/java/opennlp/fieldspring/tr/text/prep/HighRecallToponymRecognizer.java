@@ -25,7 +25,6 @@ import opennlp.tools.namefind.TokenNameFinder;
 import opennlp.tools.namefind.TokenNameFinderModel;
 import opennlp.tools.util.HashList;
 import opennlp.tools.util.InvalidFormatException;
-import scala.actors.threadpool.Arrays;
 
 /**
  * @author abhimanu kumar
@@ -133,7 +132,8 @@ public class HighRecallToponymRecognizer extends OpenNLPRecognizer {
 		}
 		lineCount++;
 		List<Span<NamedEntityType>> spans = new ArrayList<Span<NamedEntityType>>();
-		String[] tokensToBeLookedArray = (String[]) Arrays.copyOf(tokens.toArray(),tokens.toArray().length,String[].class);
+		String[] tokensToBeLookedArray = new String[tokens.toArray().length];
+                System.arraycopy(tokens.toArray(), 0, tokensToBeLookedArray, 0, tokens.toArray().length);
 		for (opennlp.tools.util.Span span : this.finder.find(tokens.toArray(new String[0]))) {
 			spans.add(new Span<NamedEntityType>(span.getStart(), span.getEnd(), this.type));
 

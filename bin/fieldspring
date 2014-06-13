@@ -113,7 +113,7 @@ if [ "$DEBUG" = yes ]; then
 fi
 
 JARS="`echo $FIELDSPRING_DIR/lib/*.jar $FIELDSPRING_DIR/lib_managed/*/*.jar $FIELDSPRING_DIR/lib_managed/*/*/*.jar $FIELDSPRING_DIR/lib_managed/*/*/*/*.jar $FIELDSPRING_DIR/output/*.jar $FIELDSPRING_DIR/target/*.jar | tr ' ' ':'`"
-SCALA_LIB="$HOME/.sbt/boot/scala-2.9.2/lib/scala-library.jar"
+SCALA_LIB="$HOME/.sbt/boot/scala-2.10.4/lib/scala-library.jar"
 CP="$FIELDSPRING_DIR/target/classes:$SCALA_LIB:$JARS:$CLASSPATH"
 
 # Later options override earlier ones, so put command-line options after

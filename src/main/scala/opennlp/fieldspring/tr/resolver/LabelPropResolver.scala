@@ -7,7 +7,7 @@ import opennlp.fieldspring.tr.util._
 import upenn.junto.app._
 import upenn.junto.config._
 
-import gnu.trove._
+import gnu.trove.map.hash.TObjectDoubleHashMap
 
 import scala.collection.JavaConversions._
 
@@ -38,19 +38,19 @@ class LabelPropResolver(
     // Interpret output graph and setSelectedIdx of toponyms accordingly:
 
     val tokensToCells =
-    (for ((id, vertex) <- graph._vertices) yield {
+    (for ((id, vertex) <- graph.vertices) yield {
       if(docTokNodeRE.findFirstIn(id) != None) {
         val docTokNodeRE(docid, tokidx) = id
-        //println(DOC+docid+"_"+TOK+tokidx+"  "+getGreatestCell(vertex.GetEstimatedLabelScores))
+        //println(DOC+docid+"_"+TOK+tokidx+"  "+getGreatestCell(vertex.estimatedLabels))
         //println(id)
-        /*val scores = vertex.GetEstimatedLabelScores
+        /*val scores = vertex.estimatedLabels
         val cellScorePairs = (for(key <- scores.keys) yield {
           (key,scores.get(key.toString))
         })
         cellScorePairs.sortWith((x, y) => x._2 > y._2).foreach(x => print(x._1+":"+x._2+"   "))
         println
-        println(getGreatestCell(vertex.GetEstimatedLabelScores))*/
-        Some(((docid, tokidx.toInt), getGreatestCell(vertex.GetEstimatedLabelScores, nonemptyCellNums.toSet)))
+        println(getGreatestCell(vertex.estimatedLabels))*/
+        Some(((docid, tokidx.toInt), getGreatestCell(vertex.estimatedLabels, nonemptyCellNums.toSet)))
       }
       else {
         //println(id)

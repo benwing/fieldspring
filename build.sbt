@@ -6,7 +6,7 @@ version := "0.1.0"
 
 organization := "OpenNLP"
 
-scalaVersion := "2.9.2"
+scalaVersion := "2.10.4"
 
 crossPaths := false
 
@@ -29,28 +29,31 @@ resolvers ++= Seq("Cloudera Maven Repository" at "https://repository.cloudera.co
 resolvers += "snapshots" at "http://oss.sonatype.org/content/repositories/snapshots"
 
 libraryDependencies ++= Seq(
-  "com.google.guava" % "guava" % "10.0.1",
-  "org.jdom" % "jdom" % "1.1",
-  "org.apache.commons" % "commons-lang3" % "3.1",
-  "org.apache.commons" % "commons-compress" % "1.3",
+  "com.google.guava" % "guava" % "17.0",
+  "org.jdom" % "jdom2" % "2.0.5",
+  "org.apache.commons" % "commons-lang3" % "3.3.2",
+  "org.apache.commons" % "commons-compress" % "1.8.1",
+  "net.liftweb" %% "lift-json" % "3.0-M1",
   // The following don't appear to be used currently.
-  // "com.google.inject" % "guice" % "2.0",
+  // "com.google.inject" % "guice" % "3.0",
   // "commons-cli" % "commons-cli" % "1.2",
-  // "org.xerial" % "sqlite-jdbc" % "3.6.20",
-  // "org.apache.opennlp" % "opennlp-maxent" % "3.0.1-incubating",
-  "org.apache.opennlp" % "opennlp-tools" % "1.5.1-incubating",
+  // "org.xerial" % "sqlite-jdbc" % "3.7.2",
+  // "org.apache.opennlp" % "opennlp-maxent" % "3.0.3",
+  "org.apache.opennlp" % "opennlp-tools" % "1.5.3",
   // The use of %% instead of % causes the Scala version to get appended,
-  // i.e. it's equivalent to the use of single % with "argot_2.9.1".
+  // i.e. it's equivalent to the use of single % with "argot_2.10".
   // This is for Scala-specific dependencies.
   // Remove this for the moment because there's a modified version (styled
   // as version "0.3.5-benwing") in the unmanaged lib/. (Fuck me, our
   // unmanaged junto.jar also includes a copy of Argot 0.3.5, so we will have
   // class path problems with a newer managed version of Argot until we
   // remove this!)
-  // "org.clapper" %% "argot" % "0.3.5",
-  // 
+  // "org.clapper" %% "argot" % "1.0.1",
+  // If we remove Argot we need to include Argot's dependencies.
+  "org.clapper" %% "grizzled-scala" % "1.2",
+  //
   // The following is the old way we got Hadoop added.  Out of date, has lots
-  // of problems.  Now it's included as a dependency of Scoobi. 
+  // of problems.  Now it's included as a dependency of Scoobi.
   // "org.apache.hadoop" % "hadoop-core" % "0.20.205.0",
   // This was necessary because of a stupid bug in the Maven POM for Hadoop
   // (the "old way") above, which leaves this out. (Supposedly Hadoop
@@ -63,21 +66,19 @@ libraryDependencies ++= Seq(
   // "log4j" % "log4j" % "1.2.17",
   //
   // Trove
-  "net.sf.trove4j" % "trove4j" % "3.0.2",
+  "net.sf.trove4j" % "trove4j" % "3.0.3",
   //
   // Scoobi
   // The following is the library we actually use, but because it's not
   // available on a web repository anywhere, we put a local copy in lib/.
-  // "com.nicta" % "scoobi_2.9.2" % "0.6.0-cdh3-SNAPSHOT-benwing",
+  // "com.nicta" % "scoobi_2.10" % "0.6.0-cdh3-SNAPSHOT-benwing",
   //
-  // The following are other possibilities.
-  // "com.nicta" % "scoobi_2.9.2" % "0.4.0",
-  // "com.nicta" % "scoobi_2.9.2" % "0.5.0-cdh3",
-  // "com.nicta" % "scoobi_2.9.2" % "0.5.0-SNAPSHOT",
-  // This should hopefully indicate that we want the dependencies of
-  // Scoobi 0.5 but we "provide" the library itself (i.e. in reality we
-  // replace the library with an updated version, stored in the lib/ dir)
-  "com.nicta" % "scoobi_2.9.2" % "0.5.0-cdh3" % "provided",
+  // We used to specify the unmodified library so as to get its dependencies,
+  // but there's no build of 0.6.0-cdh3 for Scoobi 2.10 anywhere on the
+  // web. (No support any more for cdh3 in Scoobi at all.) The idea was that
+  // the local library in lib/ overrode the unmodified library itself.
+  // Now we need to specify all the dependencies (see below).
+  // "com.nicta" % "scoobi_2.9.2" % "0.6.0-cdh3",
   // "provided" if we use Scoobi's package-hadoop instead of sbt-assembly.
   // This is another way of building an assembly for Hadoop that includes all
   // the dependent libraries into the JAR file.  To do that, we have to move
@@ -88,32 +89,32 @@ libraryDependencies ++= Seq(
   // 'fieldspring build package-hadoop' instead of
   // 'fieldspring build assembly'.
   // "com.nicta" % "scoobi_2.9.2" % "0.4.0" % "provided",
-  // A newer version that fixes a bug handling empty intermediate checkpoints
-  // in Scoobi (among other things), but leads to compile errors that I don't
-  // know how to fix.
-  //  "com.nicta" % "scoobi_2.9.2" % "0.5.0-SNAPSHOT" % "provided",
+  // Scoobi's dependencies.
+  "javassist" % "javassist" % "3.12.1.GA",
+  "org.apache.avro" % "avro-mapred" % "1.7.6",
+  "org.apache.avro" % "avro" % "1.7.6",
+  "org.apache.hadoop" % "hadoop-core" % "0.20.2-cdh3u1",
+  "com.thoughtworks.xstream" % "xstream" % "1.4.7" intransitive(),
+  "org.scalaz" %% "scalaz-core" % "7.1.0-M7",
+  // "org.scalaz" %% "scalaz-core" % "7.0.6",
+  "org.specs2" %% "specs2" % "1.14" % "optional",
+  "com.chuusai" %% "shapeless" % "1.2.4",
   //
-  // Dependencies for Scoobi, etc.
-  "log4j" % "log4j" % "1.2.16",
-  // The following needed for Scoobi 0.1, but evidently not any more.
-  // "javassist" % "javassist" % "3.12.1.GA",
-  //
+  // Additional dependency related to Scoobi; not in Scoobi's build.sbt.
+  "log4j" % "log4j" % "1.2.17"
   // Find repository for trove-scala; currently stored unmanaged
   // "com.codahale" % "trove-scala_2.9.1" % "0.0.2-SNAPSHOT"
   //
   // Jerkson - a better library for processing JSON, although still in
   // development
-  "com.codahale" % "jerkson_2.9.1" % "0.5.0"
+  // "com.codahale" % "jerkson_2.9.1" % "0.5.0"
   )
 
 // turn on all warnings in Java code
 javacOptions ++= Seq("-Xlint")
 
 // turn on all Scala warnings; also turn on deprecation warnings.
-// "-Ydependent-method-types" is suggested by the Scoobi 0.4 documentation.
-// Who knows what it does?  Evidently it's recently (end of 2011) been made
-// on by default, although I assume this applies only to Scala 2.10.
-scalacOptions ++= Seq("-Ydependent-method-types", "-deprecation", "-Xlint", "-unchecked")
+// scalacOptions ++= Seq("-deprecation", "-Xlint", "-unchecked", "-language:_")
 
 // Add optimization
 scalacOptions ++= Seq("-optimise")
@@ -124,7 +125,7 @@ seq(assemblySettings: _*)
 test in assembly := {}
 
 // Example of how to exclude jars from the assembly.
-//excludedJars in assembly <<= (fullClasspath in assembly) map { cp => 
+//excludedJars in assembly <<= (fullClasspath in assembly) map { cp =>
 //  cp filter {x => Seq("jasper-compiler-5.5.12.jar", "jasper-runtime-5.5.12.jar", "commons-beanutils-1.7.0.jar", "servlet-api-2.5-20081211.jar") contains x.data.getName }
 //}
 

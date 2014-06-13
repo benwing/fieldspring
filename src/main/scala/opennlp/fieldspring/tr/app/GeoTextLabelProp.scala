@@ -12,7 +12,7 @@ import opennlp.fieldspring.tr.util.TopoUtil
 import upenn.junto.app._
 import upenn.junto.config._
 
-import gnu.trove._
+import gnu.trove.map.hash.TObjectDoubleHashMap
 
 import scala.collection.JavaConversions._
 
@@ -52,12 +52,12 @@ object GeoTextLabelProp extends BaseApp {
 
     val docIdsToCells = new collection.mutable.HashMap[String, Int]
 
-    for ((id, vertex) <- graph._vertices) {
+    for ((id, vertex) <- graph.vertices) {
       //val nodeRE(nodeType,nodeId) = id
 
       //if(nodeType.equals(USER))
       if(id.startsWith(USER_))
-        docIdsToCells.put(id, getGreatestCell(vertex.GetEstimatedLabelScores))
+        docIdsToCells.put(id, getGreatestCell(vertex.estimatedLabels))
     }
 
     for(doc <- corpus.filter(d => (d.isDev || d.isTest) && docIdsToCells.containsKey(d.getId))) {
