@@ -24,6 +24,8 @@ class MaxentResolver(val logFilePath:String,
     (for(oneModelDirPath <- modelDirPath.split(":")) yield {
       val modelDir = new File(oneModelDirPath)
 
+      assert(modelDir.exists && modelDir.isDirectory,
+        "Directory %s must be an existing directory" format modelDir)
       //val toponymsToModels:Map[String, AbstractModel] =
         (for(file <- modelDir.listFiles.filter(_.getName.endsWith(".mxm"))) yield {
           val dataInputStream = new DataInputStream(new FileInputStream(file));
