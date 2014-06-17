@@ -8,6 +8,7 @@ fi
 origwd=`pwd`
 
 if [ ! -e $FIELDSPRING_DIR/data/gazetteers/allCountries.zip ]; then
+    mkdir -p $FIELDSPRING_DIR/data/gazetteers
     cd $FIELDSPRING_DIR/data/gazetteers
     wget http://web.corral.tacc.utexas.edu/utcompling/fieldspring-data/allCountries.zip
 fi
