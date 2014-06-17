@@ -6,17 +6,15 @@ object LogUtil {
 
   val DPC = 1.0
 
-  val DOC_PREFIX = "Document "
-  val PRED_CELL_RANK_PREFIX = "  Predicted cell (at rank "
-  val PRED_CELL_KL_PREFIX = ", kl-div "
-  val PRED_CELL_BOTTOM_LEFT_COORD_PREFIX = "): GeoCell(("
-  val TRUE_COORD_PREFIX = " at ("
-  val PRED_COORD_PREFIX = " predicted cell center at ("
-  val NEIGHBOR_PREFIX = " close neighbor: ("
-
   val CELL_BOTTOM_LEFT_COORD_PREFIX = "Cell ("
   val NGRAM_DIST_PREFIX = "unseen mass, "
   val ngramAndCountRE = """^(\S+)\=(\S+)$""".r
+
+  val documentLineRE = """.*Document (.*) at (\S+),(\S+):.*""".r
+  val predictedCellLineRE = """.*  Predicted cell \(at rank ([0-9]+), kl-div (\S+?)\): [A-Za-z]+Cell\(.*?, (\S+?),(\S+?):.*""".r
+  val neighborRE = """.*  #([0-9]+) close neighbor: (\S+?),(\S+?);.*""".r
+  val predictedCellCentralPointLineRE = """.* to predicted cell central point at \((\S+?),(\S+?)\).*""".r
+  val averageDistanceRE = """.*  Average distance from correct cell .*""".r
 
   def parseLogFile(filename: String): List[LogFileParseElement]/*List[(String, Coordinate, Coordinate, List[(Coordinate, Int)])]*/ = {
     val lines = scala.io.Source.fromFile(filename).getLines
@@ -30,64 +28,42 @@ object LogUtil {
     (for(line <- lines) yield {
       if(line.startsWith("#")) {
 
-        if(line.contains(DOC_PREFIX)) {
-          var startIndex = line.indexOf(DOC_PREFIX) + DOC_PREFIX.length
-          var endIndex = line.indexOf(TRUE_COORD_PREFIX, startIndex)
-          docName = line.slice(startIndex, endIndex)
-          if(docName.contains("/")) docName = docName.drop(docName.indexOf("/")+1)
-          
-          startIndex = line.indexOf(TRUE_COORD_PREFIX) + TRUE_COORD_PREFIX.length
-          endIndex = line.indexOf(")", startIndex)
-          val rawCoords = line.slice(startIndex, endIndex).split(",")
-          trueCoord = Coordinate.fromDegrees(rawCoords(0).toDouble, rawCoords(1).toDouble)
-
-          predCells = List()
-          neighbors = List()
-
-          None
+        line match {
+          case documentLineRE(theDocName, lat, long) => {
+            docName = theDocName
+            if(docName.contains("/"))
+              docName = docName.drop(docName.indexOf("/")+1)
+            trueCoord = Coordinate.fromDegrees(lat.toDouble, long.toDouble)
+            predCells = List()
+            neighbors = List()
+            None
+          }
+          case predictedCellLineRE(rank, kl, bllat, bllong) => {
+            val blCoord = Coordinate.fromDegrees(bllat.toDouble, bllong.toDouble)
+            predCells = predCells ::: ((rank.toInt, kl.toDouble, blCoord) :: Nil)
+            None
+          }
+          case neighborRE(rank, lat, long) => {
+            val curNeighbor = Coordinate.fromDegrees(lat.toDouble, long.toDouble)
+            neighbors = neighbors ::: ((curNeighbor, rank.toInt) :: Nil)
+            None
+          }
+          case predictedCellCentralPointLineRE(lat, long) => {
+            predCoord = Coordinate.fromDegrees(lat.toDouble, long.toDouble)
+            None
+          }
+          case averageDistanceRE() => {
+            assert(docName != null)
+            assert(neighbors != null)
+            assert(neighbors.size > 0)
+            assert(predCells != null)
+            assert(predCells.size > 0)
+            assert(trueCoord != null)
+            assert(predCoord != null)
+            Some(new LogFileParseElement(docName, trueCoord, predCoord, predCells, neighbors))
+          }
+          case _ => None
         }
-
-        else if(line.contains(PRED_CELL_RANK_PREFIX)) {
-          val rankStartIndex = line.indexOf(PRED_CELL_RANK_PREFIX) + PRED_CELL_RANK_PREFIX.length
-          val rankEndIndex = line.indexOf(PRED_CELL_KL_PREFIX, rankStartIndex)
-          val rank = line.slice(rankStartIndex, rankEndIndex).toInt
-          val klStartIndex = rankEndIndex + PRED_CELL_KL_PREFIX.length
-          val klEndIndex = line.indexOf(PRED_CELL_BOTTOM_LEFT_COORD_PREFIX, klStartIndex)
-          val kl = line.slice(klStartIndex, klEndIndex).toDouble
-          val blCoordStartIndex = klEndIndex + PRED_CELL_BOTTOM_LEFT_COORD_PREFIX.length
-          val blCoordEndIndex = line.indexOf(")", blCoordStartIndex)
-          val rawBlCoord = line.slice(blCoordStartIndex, blCoordEndIndex).split(",")
-          val blCoord = Coordinate.fromDegrees(rawBlCoord(0).toDouble, rawBlCoord(1).toDouble)
-
-          predCells = predCells ::: ((rank, kl, blCoord) :: Nil)
-
-          None
-        }
-
-        else if(line.contains(NEIGHBOR_PREFIX)) {
-          val startIndex = line.indexOf(NEIGHBOR_PREFIX) + NEIGHBOR_PREFIX.length
-          val endIndex = line.indexOf(")", startIndex)
-          val rawCoords = line.slice(startIndex, endIndex).split(",")
-          val curNeighbor = Coordinate.fromDegrees(rawCoords(0).toDouble, rawCoords(1).toDouble)
-          val rankStartIndex = line.indexOf("#", 1)+1
-          val rankEndIndex = line.indexOf(" ", rankStartIndex)
-          val rank = line.slice(rankStartIndex, rankEndIndex).toInt
-          
-          neighbors = neighbors ::: ((curNeighbor, rank) :: Nil)
-
-          None
-        }
-
-        else if(line.contains(PRED_COORD_PREFIX)) {
-          val startIndex = line.indexOf(PRED_COORD_PREFIX) + PRED_COORD_PREFIX.length
-          val endIndex = line.indexOf(")", startIndex)
-          val rawCoords = line.slice(startIndex, endIndex).split(",")
-          predCoord = Coordinate.fromDegrees(rawCoords(0).toDouble, rawCoords(1).toDouble)
-
-          Some(new LogFileParseElement(docName, trueCoord, predCoord, predCells, neighbors))
-        }
-
-        else None
       }
       else None
     }).flatten.toList
