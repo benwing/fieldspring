@@ -16,9 +16,11 @@
 //  limitations under the License.
 ///////////////////////////////////////////////////////////////////////////////
 
-package opennlp.fieldspring.postprocess
+package opennlp.fieldspring
+package postprocess
 
-import opennlp.fieldspring.util.Twokenize
+import util.io.localfh
+import util.Twokenize
 import org.clapper.argot._
 import java.io._
 
@@ -53,8 +55,7 @@ object WordRankerByAvgErrorUT {
     val docNamesAndErrors:Map[String, Double] = scala.io.Source.fromFile(listFile.value.get).getLines.
       map(_.split("\t")).map(p => (p(0), p(1).toDouble)).toMap
 
-    val in = new BufferedReader(
-      new InputStreamReader(new FileInputStream(corpusFile.value.get), "UTF8"))
+    val in = localfh.open_buffered_reader(corpusFile.value.get)
 
     val wordsToErrors = new scala.collection.mutable.HashMap[String, Double]
     val wordsToDocNames = new scala.collection.mutable.HashMap[String, scala.collection.immutable.HashSet[String]]

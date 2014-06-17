@@ -38,7 +38,7 @@ object Preprocess extends App {
 
     val corpus = Corpus.createStreamCorpus
 
-    val in = localfh.get_buffered_reader_handling_compression(args(0))
+    val in = localfh.open_buffered_reader(args(0))
     corpus.addSource(
      new ToponymAnnotator(new PlainTextSource(in, divider, tokenizer, args(0)),
      recognizer, gazetteer

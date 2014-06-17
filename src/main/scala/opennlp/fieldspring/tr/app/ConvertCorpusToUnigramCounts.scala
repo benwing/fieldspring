@@ -35,9 +35,9 @@ object ConvertCorpusToUnigramCounts extends BaseApp {
       //val gnGaz = ois.readObject.asInstanceOf[GeoNamesGazetteer]
       //gis.close
       corpus.addSource(new PlainTextSource(
-        localfh.get_buffered_reader_handling_compression(args(0)), new OpenNLPSentenceDivider(), tokenizer))
+        localfh.open_buffered_reader(args(0)), new OpenNLPSentenceDivider(), tokenizer))
       //corpus.addSource(new ToponymAnnotator(new PlainTextSource(
-      // localfh.get_buffered_reader_handling_compression(args(0)), new OpenNLPSentenceDivider(), tokenizer),
+      // localfh.open_buffered_reader(args(0)), new OpenNLPSentenceDivider(), tokenizer),
       //          recognizer, gnGaz, null))
       corpus.setFormat(BaseApp.CORPUS_FORMAT.PLAIN)
       */

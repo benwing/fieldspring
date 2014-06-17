@@ -70,8 +70,7 @@ object SupervisedTRFeatureExtractor extends App {
 
   val wikiTextCorpus = Corpus.createStreamCorpus
   
-  val reader = localfh.get_buffered_reader_handling_compression(
-    wikiTextInputFile.value.get)
+  val reader = localfh.open_buffered_reader(wikiTextInputFile.value.get)
   wikiTextCorpus.addSource(new ToponymAnnotator(new WikiTextSource(reader), recognizer, gnGaz))
   wikiTextCorpus.setFormat(BaseApp.CORPUS_FORMAT.WIKITEXT)
 
@@ -186,7 +185,7 @@ object SupervisedTRMaxentModelTrainer extends App {
   val dir = new File(args(0))
   for(file <- dir.listFiles.filter(_.getName.endsWith(".txt"))) {
     try {
-      val reader = new BufferedReader(new FileReader(file))
+      val reader = localfh.open_buffered_reader(file.toString)
       val dataStream = new PlainTextByLineDataStream(reader)
       val eventStream = new BasicEventStream(dataStream, ",")
 

@@ -218,14 +218,14 @@ package io {
      *   that indicates compression).
      *
      * @see `FileIterator`, `get_input_stream`,
-     *   `get_input_stream_handling_compression`
+     *   `open_input_stream`, `open_buffered_reader`
      */
     def openr_with_compression_info(filename: String,
         encoding: String = "UTF-8", compression: String = "byname",
         chomp: Boolean = true, close: Boolean = true,
         errors: String = "strict", bufsize: Int = 0) = {
       val (reader, comtype, realname) =
-        get_buffered_reader_handling_compression_with_info(filename,
+        open_buffered_reader_with_compression_info(filename,
           encoding, compression, errors, bufsize)
       (new FileIterator(reader, chomp=chomp, close=close), comtype, realname)
     }
@@ -259,7 +259,7 @@ package io {
      *   using the `close()` method on the iterator.
      *
      * @see `FileIterator`, `openr_with_compression_info`, `get_input_stream`,
-     *   `get_input_stream_handling_compression`
+     *   `open_input_stream`, `open_buffered_reader`
      */
     def openr(filename: String, encoding: String = "UTF-8",
         compression: String = "byname", chomp: Boolean = true,
@@ -327,7 +327,7 @@ package io {
      *   uncompressed file would have (typically by removing the extension
      *   that indicates compression).
      */
-    def get_input_stream_handling_compression_with_info(filename: String,
+    def open_input_stream_with_compression_info(filename: String,
         compression: String = "byname", bufsize: Int = 0) = {
       val raw_in = get_input_stream(filename, bufsize)
       val comtype =
@@ -367,10 +367,10 @@ package io {
      *
      * @return An InputStream, the stream to read from
      */
-    def get_input_stream_handling_compression(filename: String,
+    def open_input_stream(filename: String,
         compression: String = "byname", bufsize: Int = 0) = {
       val (stream, _, _) =
-        get_input_stream_handling_compression_with_info(filename, compression,
+        open_input_stream_with_compression_info(filename, compression,
           bufsize)
       stream
     }
@@ -399,11 +399,11 @@ package io {
      *   uncompressed file would have (typically by removing the extension
      *   that indicates compression).
      */
-    def get_buffered_reader_handling_compression_with_info(filename: String,
+    def open_buffered_reader_with_compression_info(filename: String,
         encoding: String = "UTF-8", compression: String = "byname",
         errors: String = "strict", bufsize: Int = 0) = {
       val (is, comtype, realname) =
-        get_input_stream_handling_compression_with_info(filename, compression,
+        open_input_stream_with_compression_info(filename, compression,
           bufsize = -1)
       val reader = get_buffered_reader(is, encoding, errors, bufsize)
       (reader, comtype, realname)
@@ -428,11 +428,11 @@ package io {
      *
      * @return BufferedReader to read from
      */
-    def get_buffered_reader_handling_compression(filename: String,
+    def open_buffered_reader(filename: String,
         encoding: String = "UTF-8", compression: String = "byname",
         errors: String = "strict", bufsize: Int = 0) = {
       val (reader, _, _) =
-        get_buffered_reader_handling_compression_with_info(filename, encoding,
+        open_buffered_reader_with_compression_info(filename, encoding,
           compression, errors, bufsize)
       reader
     }

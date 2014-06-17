@@ -45,7 +45,7 @@ object ExtractGeotaggedListFromWikiDump {
   val latd = """^.*[Ll]atd\s*=\s*(-?\d+\.?\d*+)\s*\|\s*[Ll]at[Nn][Ss]\s*=\s*([Nn]|[Ss])\s*\|\s*[Ll]ongd\s*=\s*(-?\d+\.?\d*+)\s*\|\s*[Ll]ong[Ee][Ww]\s*=\s*([Ee]|[Ww])\s*.*$""".r
 
   def main(args: Array[String]) {
-    val in = localfh.get_buffered_reader_handling_compression(args(0))
+    val in = localfh.open_buffered_reader(args(0))
     if(args.length >= 2)
       MAX_COUNT = args(1).toInt
 

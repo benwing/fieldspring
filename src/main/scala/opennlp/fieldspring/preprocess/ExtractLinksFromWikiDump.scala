@@ -122,7 +122,7 @@ object ExtractLinksFromWikiDump {
       Set()
     }
 
-    val in = localfh.get_buffered_reader_handling_compression(
+    val in = localfh.open_buffered_reader(
       rawWikiInputFile.value.get)
 
     //var totalPageCount = 0

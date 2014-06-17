@@ -38,7 +38,7 @@ object FilterGeotaggedWiki extends App {
 
   val wikiTextCorpus = Corpus.createStreamCorpus
 
-  val reader = localfh.get_buffered_reader_handling_compression(
+  val reader = localfh.open_buffered_reader(
     wikiTextInputFile.value.get)
   wikiTextCorpus.addSource(new WikiTextSource(reader))
   wikiTextCorpus.setFormat(BaseApp.CORPUS_FORMAT.WIKITEXT)
