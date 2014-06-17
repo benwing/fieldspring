@@ -1,6 +1,7 @@
-package opennlp.fieldspring.util
+package opennlp.fieldspring
+package util
 
-/* Fieldspring note:
+/* TextGrounder note:
 
    This has been taken directly from Jason Baldridge's twokenize.scala
    version as of 2011-06-13, from here:
@@ -16,7 +17,7 @@ package opennlp.fieldspring.util
 */
 
 /*
- TweetMotif is licensed under the Apache License 2.0: 
+ TweetMotif is licensed under the Apache License 2.0:
  http://www.apache.org/licenses/LICENSE-2.0.html
  Copyright Brendan O'Connor, Michel Krieger, and David Ahn, 2009-2010.
 */
@@ -53,6 +54,7 @@ package opennlp.fieldspring.util
 */
 
 import scala.util.matching.Regex
+import scala.io.Source
 
 object Twokenize {
 
@@ -85,14 +87,14 @@ object Twokenize {
   val numberWithCommas = """(\d+,)+?\d{3}""" + """(?=([^,]|$))"""
 
   // Note the magic 'smart quotes' (http://en.wikipedia.org/wiki/Smart_quotes)
-  val edgePunctChars    = """'\"“”‘’<>«»{}\(\)\[\]"""  
+  val edgePunctChars    = """'\"“”‘’<>«»{}\(\)\[\]"""
   val edgePunct    = "[" + edgePunctChars + "]"
   val notEdgePunct = "[a-zA-Z0-9]"
   val EdgePunctLeft  = new Regex("""(\s|^)("""+edgePunct+"+)("+notEdgePunct+")")
-  val EdgePunctRight = new Regex("("+notEdgePunct+")("+edgePunct+"""+)(\s|$)""")    
+  val EdgePunctRight = new Regex("("+notEdgePunct+")("+edgePunct+"""+)(\s|$)""")
 
   // Abbreviations
-  val boundaryNotDot = """($|\s|[“\"?!,:;]|""" + entity + ")" 
+  val boundaryNotDot = """($|\s|[“\"?!,:;]|""" + entity + ")"
   val aa1  = """([A-Za-z]\.){2,}(?=""" + boundaryNotDot + ")"
   val aa2  = """[^A-Za-z]([A-Za-z]\.){1,}[A-Za-z](?=""" + boundaryNotDot + ")"
   val standardAbbreviations = """\b([Mm]r|[Mm]rs|[Mm]s|[Dd]r|[Ss]r|[Jj]r|[Rr]ep|[Ss]en|[Ss]t)\."""
@@ -113,7 +115,7 @@ object Twokenize {
   val otherMouths = """[doO/\\]""" // remove forward slash if http://'s aren't cleaned
 
   val emoticon = "("+normalEyes+"|"+wink+")" + noseArea + "("+tongue+"|"+otherMouths+"|"+sadMouths+"|"+happyMouths+")"
-                     
+
   // We will be tokenizing using these regexps as delimiters
   val Protected  = new Regex(
     "(" + Array(
@@ -145,15 +147,15 @@ object Twokenize {
     val protectedSpans = matches map (mat => Tuple2(mat.start, mat.end))
 
     // Create a list of indices to create the "splittables", which can be
-    // split. We are taking protected spans like 
-    //     List((2,5), (8,10)) 
-    // to create 
+    // split. We are taking protected spans like
+    //     List((2,5), (8,10))
+    // to create
     ///    List(0, 2, 5, 8, 10, 12)
     // where, e.g., "12" here would be the textLength
     val indices =
       (0 :: (protectedSpans flatMap { case (start,end) => List(start,end) })
          ::: List(textLength))
-    
+
     // Group the indices and map them to their respective portion of the string
     val splittableSpans =
       indices.grouped(2) map { x => splitPunctText.slice(x(0),x(1)) } toList
@@ -161,23 +163,23 @@ object Twokenize {
     //The 'splittable' strings are safe to be further tokenized by whitespace
     val splittables = splittableSpans map { str => str.trim.split(" ").toList }
 
-    //Storing as List[List[String]] to make zip easier later on 
+    //Storing as List[List[String]] to make zip easier later on
     val protecteds = protectedSpans map {
       case(start,end) => List(splitPunctText.slice(start,end)) }
 
     //  Reinterpolate the 'splittable' and 'protected' Lists, ensuring that
     //  additonal tokens from last splittable item get included
-    val zippedStr = 
-      (if (splittables.length == protecteds.length) 
+    val zippedStr =
+      (if (splittables.length == protecteds.length)
         splittables.zip(protecteds) map { pair => pair._1 ++ pair._2 }
-      else 
+      else
         ((splittables.zip(protecteds) map { pair => pair._1 ++ pair._2 }) :::
          List(splittables.last))
      ).flatten
 
     // Split based on special patterns (like contractions) and check all tokens are non empty
     zippedStr.map(splitToken(_)).flatten.filter(_.length > 0)
-  }  
+  }
 
   // 'foo' => ' foo '
   def splitEdgePunct (input: String) = {
@@ -204,8 +206,8 @@ object Twokenize {
 
   // Main method
   def main (args: Array[String]) = {
-    io.Source.stdin.getLines foreach { 
-      line => println(apply(line) reduceLeft(_ + " " + _)) 
+    Source.stdin.getLines foreach {
+      line => println(apply(line) reduceLeft(_ + " " + _))
     }
   }
 

@@ -1,7 +1,7 @@
 ///////////////////////////////////////////////////////////////////////////////
 //  experiment.scala
 //
-//  Copyright (C) 2011 Ben Wing, The University of Texas at Austin
+//  Copyright (C) 2011-2014 Ben Wing, The University of Texas at Austin
 //
 //  Licensed under the Apache License, Version 2.0 (the "License");
 //  you may not use this file except in compliance with the License.
@@ -16,19 +16,23 @@
 //  limitations under the License.
 ///////////////////////////////////////////////////////////////////////////////
 
-package opennlp.fieldspring.util
+package opennlp.fieldspring
+package util
 
 import scala.collection.mutable
 
 import argparser._
-import collectionutil._
-import ioutil.{FileHandler, LocalFileHandler}
-import osutil._
-import printutil.{errprint, set_stdout_stderr_utf_8}
-import textutil._
-import timeutil.format_minutes_seconds
+import collection._
+import io.FileHandler
+import metering._
+import os._
+import print.{errprint, set_stdout_stderr_utf_8}
+import text._
+import textdb.{Encoder, TextDB}
+import time.format_minutes_seconds
+import verbose._
 
-package object experiment {
+protected class ExperimentPackage {
   /**
    * A general experiment driver class for programmatic access to a program
    * that runs experiments.
@@ -37,110 +41,158 @@ package object experiment {
    *
    * 1. Create an instance of a class of type TParam (which is determined
    *    by the particular driver implementation) and populate it with the
-   *    appropriate parameters.
-   * 2. Call `run()`, passing in the parameter object created in the previous
-   *    step.  The return value (of type TRunRes, again determined by
+   *    appropriate parameters. Set `params` to this object.
+   * 2. Call `run_program()`, passing in the parameter object created in the
+   *    previous step.  The return value (of type TRunRes, again determined by
    *    the particular implementation) contains the results.
    *
    * NOTE: Some driver implementations may change the values of some of the
    * parameters recorded in the parameter object (particularly to
    * canonicalize them).
    *
-   * Note that `run()` is actually a convenience method that does three steps:
-   *
-   * 1. `set_parameters`, which notes the parameters passed in and verifies
-   *    that their values are good.
-   * 2. `setup_for_run`, which does any internal setup necessary for
-   *    running the experiment (e.g. reading files, creating internal
-   *    structures).
-   * 3. `run_after_setup`, which executes the experiment.
-   *
-   * These three steps have been split out because some applications may need
-   * to access each step separately, or override some but not others.  For
-   * example, to add Hadoop support to an application, `run_after_setup`
-   * might need to be replaced with a different implementation based on the
-   * MapReduce framework, while the other steps might stay more or less the
-   * same.
+   * Note that `run_program()` is actually a convenience method that wraps
+   * `run()` with some code to output the arguments at the beginning and the
+   * total execution time at the end.
    */
 
   trait ExperimentDriver {
     type TParam
     type TRunRes
+    var original_args: Array[String] = _
     var params: TParam = _
+
+    val beginning_time = curtimesecs
+    var ending_time = 0.0
 
     /**
      * Signal a parameter error.
      */
     def param_error(string: String) {
-      throw new IllegalArgumentException(string)
+      throw new ArgParserRestrictionException(string)
     }
 
-    protected def param_needed(param: String, param_english: String = null) {
-      val mparam_english =
-        if (param_english == null)
-          param.replace("-", " ")
-        else
-          param_english
-      param_error("Must specify %s using --%s" format
-        (mparam_english, param.replace("_", "-")))
-    }
-
-    protected def need_seq(value: Seq[String], param: String,
-        param_english: String = null) {
-      if (value.length == 0)
-        param_needed(param, param_english)
-    }
-
-    protected def need(value: String, param: String,
-        param_english: String = null) {
-      if (value == null || value.length == 0)
-        param_needed(param, param_english)
-    }
-
-    def set_parameters(params: TParam) {
+    def run_program(args: Array[String], params: TParam) = {
       this.params = params
-      handle_parameters()
+      original_args = args
+      errprint("Beginning operation at %s" format humandate_full(beginning_time))
+      errprint("Arguments: %s" format (args mkString " "))
+      val retval = run()
+      if (ending_time == 0)
+        ending_time = curtimesecs
+      errprint("Ending operation at %s" format humandate_full(ending_time))
+      errprint("Program running time: %s",
+        format_minutes_seconds(ending_time - beginning_time))
+      retval
     }
 
-    def run(params: TParam) = {
-      set_parameters(params)
-      setup_for_run()
-      run_after_setup()
-    }
+    def show_progress(verb: String, item_name: String,
+      verbose: MsgVerbosity = MsgNormal,
+      secs_between_output: Double = 15, maxtime: Double = 0.0,
+      maxitems: Int = 0
+    ): Meter =
+      // Call `driver.heartbeat` every time an item is processed or we
+      // otherwise do something, to let Hadoop know that we're actually
+      // making progress.
+      new Meter(verb, item_name, verbose, secs_between_output, maxtime,
+          maxitems) {
+        override def start() = {
+          // This is kind of overkill, but shouldn't hurt.
+          heartbeat()
+          super.start()
+        }
+        override def item_processed() = {
+          heartbeat()
+          super.item_processed()
+        }
+        override def finish() = {
+          // This is also overkill, but shouldn't hurt.
+          heartbeat()
+          super.finish()
+        }
+      }
 
     def heartbeat() {
     }
+
+    /********************************************************************/
+    /*          Note results to include in a textdb output file         */
+    /********************************************************************/
+
+    /** The purpose of this mechanism is to allow a running "experiment"
+     * (which is a very general concept, see above) to make note, at various
+     * points in the execution of the experiment, of results that should be
+     * included later on in a textdb file that is outputted to record the
+     * result of running the experiment. The textdb file itself is written
+     * using a call to `write_constructed_textdb_with_results`. The results that
+     * are noted here are stored in the fixed fields of the textdb. The
+     * parameters used to invoke the application that runs the experiment are
+     * automatically recorded in this fashion (see
+     * `output_command_line_parameters` in `ExperimentDriverApp`).
+     */
+
+    protected val results_to_output = mutable.LinkedHashMap[String, String]()
+    protected var field_description = Map[String, String]()
+
+    /**
+     * Note a result to be stored in the schema of a textdb output file
+     * (e.g. the results file specified using --results), where the result
+     * has already been encoded for storage in a textdb field (requires
+     * special handling e.g. of newlines and tab characters).
+     */
+    def note_raw_result(field: String, value: String, desc: String = "") {
+      results_to_output += (field -> value)
+      if (desc != "")
+        field_description += (field -> desc)
+    }
+
+    /**
+     * Note a result to be stored in the schema of a textdb output file
+     * (e.g. the results file specified using --results).
+     */
+    def note_result(field: String, value: Any, desc: String = "") {
+      // Not .toString because that can't handle null
+      val str = Encoder.string("%s" format value)
+      note_raw_result(field, str, desc)
+    }
+
+    /**
+     * Note a result to be stored in the schema of a textdb output file
+     * (e.g. the results file specified using --results), and also print
+     * it to stderr.
+     */
+    def note_print_result(field: String, value: Any, desc: String) {
+      note_result(field, value, desc)
+      errprint("%s: %s", desc, value)
+    }
+
+    /**
+     * Output a textdb database, including the fixed fields that were
+     * specified using `note_result` and related functions.
+     *
+     * @param filehand File handler object of the file system to write to
+     * @param base Prefix of schema and data files
+     * @param data Data to write out. Each item is a sequence of (name,value)
+     *   pairs. The field names must be the same for all data points, and in
+     *   the same order. The values can be of arbitrary type (including null),
+     *   and will be converted to strings using "%s".format(_). The resulting
+     *   strings must not fall afoul of the restrictions on characters (i.e.
+     *   no tabs or newlines). If necessary, pre-convert the object to a
+     *   string and encode it properly.
+     */
+    def write_constructed_textdb_with_results(filehand: FileHandler, base: String,
+      data: Iterator[Iterable[(String, Any)]]) =
+        TextDB.write_constructed_textdb(filehand, base, data, results_to_output,
+          field_description)
 
     /********************************************************************/
     /*                 Function to override below this line             */
     /********************************************************************/
 
     /**
-     * Verify and canonicalize the parameters passed in.  Retrieve any other
-     * parameters from the environment.  NOTE: Currently, some of the
-     * fields in this structure will be changed (canonicalized).  See above.
-     * If parameter values are illegal, an error will be signaled.
+     * Actually run the experiment.
      */
 
-    protected def handle_parameters()
-
-    /**
-     * Do any setup before actually implementing the experiment.  This
-     * may mean, for example, loading files and creating any needed
-     * structures.
-     */
-
-    def setup_for_run()
-
-    /**
-     * Actually run the experiment.  We have separated out the run process
-     * into three steps because we might want to replace one of the
-     * components in a sub-implementation of an experiment. (For example,
-     * if we implement a Hadoop version of an experiment, typically we need
-     * to replace the run_after_setup component but leave the others.)
-     */
-
-    def run_after_setup(): TRunRes
+    def run(): TRunRes
   }
 
   /**
@@ -151,7 +203,7 @@ package object experiment {
    * may be run in parallel of different machines to completely a global
    * job.  Counters can be tracked both globally and per-task.
    */
-  abstract trait ExperimentDriverStats {
+  trait ExperimentDriverStats extends ExperimentDriver {
     /** Set of counters under the given group, using fully-qualified names. */
     protected val counters_by_group = setmap[String,String]()
     /** Set of counter groups under the given group, using fully-qualified
@@ -175,7 +227,7 @@ package object experiment {
     def note_counter(name: String) {
       if (!(counters_by_name contains name)) {
         counters_by_name += name
-        note_counter_by_group(name, true)
+        note_counter_by_group(name, is_counter = true)
       }
     }
 
@@ -203,7 +255,7 @@ package object experiment {
       else
         counter_groups_by_group(group) += name
       if (group != "")
-        note_counter_by_group(group, false)
+        note_counter_by_group(group, is_counter = false)
     }
 
     /**
@@ -226,7 +278,7 @@ package object experiment {
         if (!recursive)
           Iterable[String]()
         else
-          list_counter_groups(group, true)
+          list_counter_groups(group, recursive = true)
       val fq = (groups.view ++ subgroups) flatMap (counters_by_group(_))
       if (fully_qualified) fq
       else fq map (_.stripPrefix(group + "."))
@@ -257,7 +309,7 @@ package object experiment {
         if (!recursive)
           groups
         else
-          groups ++ (groups flatMap (list_counter_groups(_, true)))
+          groups ++ (groups flatMap (list_counter_groups(_, recursive = true)))
       if (fully_qualified) fq
       else fq map (_.stripPrefix(group + "."))
     }
@@ -467,19 +519,16 @@ package object experiment {
    *     initializes the ArgParser with the list of allowable arguments,
    *     types, default values, etc. `TParam` is the type of this class,
    *     and `create_param_object` must be implemented to create an instance
-   *     of this class.
-   * (2) `initialize_parameters` must be implemented to handle validation
-   *     of the command-line arguments and retrieval of any other parameters.
-   * (3) `run_program` must, of course, be implemented, to provide the
+   *     of this class. Extra validation of command-line arguments and
+   *     retrieval of any other parameters is handled inside this class.
+   *     Since the class will be executed twice, if may be necessary to
+   *     bracket code with 'if (ap.parsedValues)' if it should only execute
+   *     when values have been parsed and filled in.
+   * (2) `run_program` must, of course, be implemented, to provide the
    *     actual behavior of the application.
    */
 
-  /* SCALABUG: If this param isn't declared with a 'val', we get an error
-     below on the line creating ArgParser when trying to access progname,
-     saying "no such field". */
   abstract class ExperimentApp(val progname: String) {
-    val beginning_time = curtimesecs()
-
     // Things that must be implemented
 
     /**
@@ -495,17 +544,11 @@ package object experiment {
     def create_param_object(ap: ArgParser): TParam
 
     /**
-     * Function to initialize and verify internal parameters from command-line
-     * arguments and other sources.
-     */
-    def initialize_parameters()
-
-    /**
      * Function to run the actual app, after parameters have been set.
      * @return Exit code of program (0 for successful completion, > 0 for
      *  an error
      */
-    def run_program(): Int
+    def run_program(args: Array[String]): Int
 
     // Things that may be overridden
 
@@ -528,13 +571,14 @@ package object experiment {
     def output_command_line_parameters() {
       errprint("")
       errprint("Non-default parameter values:")
-      for (name <- arg_parser.argNames) {
-        if (arg_parser.specified(name))
+      for (name <- arg_parser.argNames.toSeq.sorted) {
+        if (arg_parser.specified(name)) {
           errprint("%30s: %s", name, arg_parser(name))
+        }
       }
       errprint("")
       errprint("Parameter values:")
-      for (name <- arg_parser.argNames) {
+      for (name <- arg_parser.argNames.toSeq.sorted) {
         errprint("%30s: %s", name, arg_parser(name))
         //errprint("%30s: %s", name, arg_parser.getType(name))
       }
@@ -564,25 +608,17 @@ package object experiment {
      *
      * @param args Command-line arguments, as specified by user
      * @return Exit code, typically 0 for successful completion,
-     *   positive for errorThis needs to be called explicitly from the
+     *   positive for error.
      */
     def implement_main(args: Array[String]) = {
       initialize_osutil()
       set_stdout_stderr_utf_8()
-      errprint("Beginning operation at %s" format humandate_full(beginning_time))
-      errprint("Arguments: %s" format (args mkString " "))
       val shadow_fields = create_param_object(arg_parser)
       arg_parser.parse(args)
-      params = create_param_object(arg_parser)
-      initialize_parameters()
+      params = catch_parser_errors { create_param_object(arg_parser) }
       output_command_line_parameters()
       output_ancillary_parameters()
-      val retval = run_program()
-      val ending_time = curtimesecs()
-      errprint("Ending operation at %s" format humandate_full(ending_time))
-      errprint("Program running time: %s",
-        format_minutes_seconds(ending_time - beginning_time))
-      retval
+      run_program(args)
     }
 
     /**
@@ -601,11 +637,34 @@ package object experiment {
    * using the `argparser` module, following the preferred style of that
    * module.
    *
+   * This uses an ArgParser object (stored in the `parser` field) to set
+   * the parameters appropriately, e.g. from the command line. The parameters
+   * themselves are stored in field variables, initialized from the ArgParser
+   * object. In order to make this work, the following steps are necessary:
+   *
+   * <ol>
+   * <li>Create an empty ArgParser.
+   * <li>Create a parameter object, passing in the parser. As the
+   *     "shadow fields" in this object get initialized, the parser records
+   *     the valid parameters and their properties, and initializes the
+   *     fields to their default values.
+   * <li>Tell the parser to parse a command line.
+   * <li>Create a second parameter object the same way the first one was
+   *     created. This time, the fields will be initialized to the values
+   *     stored in the command line.
+   * </ol>
+   *
+   * If programmatic access is desired and the parameters are to be set
+   * in some other way, just  do the first two steps, and then change any
+   * parameters that should not have their default values.
+   *
    * @param parser the ArgParser object that does the actual parsing of
    *   command-line arguments.
    */
 
-  abstract class ArgParserParameters(val parser: ArgParser) {
+  trait ArgParserParameters {
+    val parser: ArgParser
+    protected lazy val ap = parser
   }
 
   /**
@@ -623,7 +682,7 @@ package object experiment {
 
   trait ArgParserExperimentDriver extends ExperimentDriver {
     override type TParam <: ArgParserParameters
-    
+
     override def param_error(string: String)  = {
       params.parser.error(string)
     }
@@ -643,16 +702,11 @@ package object experiment {
   trait HadoopableArgParserExperimentDriver extends
       ArgParserExperimentDriver with ExperimentDriverStats {
     /**
-     * FileHandler object for this driver.
-     */
-    private val local_file_handler = new LocalFileHandler
-
-    /**
      * The file handler object for abstracting file access using either the
      * Hadoop or regular Java API.  By default, references the regular API,
      * but can be overridden.
      */
-    def get_file_handler: FileHandler = local_file_handler
+    def get_file_handler: FileHandler = io.localfh
   }
 
   /**
@@ -673,48 +727,80 @@ package object experiment {
   abstract class ExperimentDriverApp(appname: String) extends
       ExperimentApp(appname) {
     type TDriver <: ArgParserExperimentDriver
-    
-    val driver = create_driver()
+
+    val driver = create_driver
     type TParam = driver.TParam
 
-    def create_driver(): TDriver
+    def create_driver: TDriver
 
     override def output_ancillary_parameters() {
       driver.output_ancillary_parameters()
     }
 
-    def initialize_parameters() {
-      driver.set_parameters(params)
+    override def output_command_line_parameters() {
+      super.output_command_line_parameters()
+      for (name <- arg_parser.argNames) {
+        if (arg_parser.specified(name)) {
+          driver.note_result("parameters.non-default.%s" format name,
+            arg_parser(name))
+        }
+      }
+      for (name <- arg_parser.argNames) {
+        driver.note_result("parameters.%s" format name,
+          arg_parser(name))
+      }
+
+      val param_values = params.parser.argValues map {
+        // Use format rather than toString to handle nulls
+        case (arg, value) => (arg, "%s" format value)
+      }
+      driver.note_raw_result("parameters-combined",
+        Encoder.string_map_seq(param_values),
+        "Parameters")
+      driver.note_raw_result("parameters-non-default-combined",
+        Encoder.string_map_seq(
+          param_values filter {
+            case (arg, value) => params.parser.specified(arg)
+          }),
+        "Non-default parameters")
+      driver.note_result("generating-app", appname,
+        "Application generating this textdb")
     }
 
-    def run_program() = {
-      driver.setup_for_run()
-      driver.run_after_setup()
+    def run_program(args: Array[String]) = {
+      driver.run_program(args, params)
       0
     }
   }
 
-  /**
-   * An extension of the MeteredTask class that calls `driver.heartbeat`
-   * every time an item is processed or we otherwise do something, to let
-   * Hadoop know that we're actually making progress.
-   */
-  class ExperimentMeteredTask(
-    driver: ExperimentDriver,
-    item_name: String,
-    verb: String,
-    secs_between_output: Double = 15,
-    maxtime: Double = 0.0
-  ) extends MeteredTask(item_name, verb, secs_between_output, maxtime) {
-    driver.heartbeat() // Also overkill, again won't hurt.
-    override def item_processed() = {
-      driver.heartbeat()
-      super.item_processed()
-    }
-    override def finish() = {
-      // This is kind of overkill, but shouldn't hurt.
-      driver.heartbeat()
-      super.finish()
+  /** Split a command line into arguments. Respect quotes. Allow \" for a
+   * quote, \\ for a single backslash. */
+  def split_command_line(cmdline: String) = {
+    val words = """("([^"\\]|\.)*"|[^"\s])+""".r.findAllIn(cmdline).toArray
+    for (word <- words) yield {
+      // println("Saw: %s" format word)
+      val wordbuf = mutable.Buffer[Char]()
+      var in_backslash = false
+      for (c <- word) {
+        if (in_backslash) {
+          if (c == '\\' || c == '"')
+            wordbuf += c
+          else {
+            wordbuf += '\\'
+            wordbuf += c
+          }
+          in_backslash = false
+        } else if (c == '\\') {
+          in_backslash = true
+        } else if (c != '"') {
+          wordbuf += c
+        }
+      }
+      if (in_backslash)
+        wordbuf += '\\'
+      wordbuf mkString ""
     }
   }
 }
+
+package object experiment extends ExperimentPackage { }

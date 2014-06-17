@@ -1,7 +1,7 @@
 ///////////////////////////////////////////////////////////////////////////////
 //  hadoop.scala
 //
-//  Copyright (C) 2011 Ben Wing, The University of Texas at Austin
+//  Copyright (C) 2011-2014 Ben Wing, The University of Texas at Austin
 //
 //  Licensed under the Apache License, Version 2.0 (the "License");
 //  you may not use this file except in compliance with the License.
@@ -16,7 +16,8 @@
 //  limitations under the License.
 ///////////////////////////////////////////////////////////////////////////////
 
-package opennlp.fieldspring.util
+package opennlp.fieldspring
+package util
 
 import org.apache.hadoop.io._
 import org.apache.hadoop.util._
@@ -33,14 +34,15 @@ import org.apache.hadoop.fs._
 import java.io.{FileSystem=>_,_}
 import java.net.URI
 
-import opennlp.fieldspring.util.argparser._
-import opennlp.fieldspring.util.collectionutil._
-import opennlp.fieldspring.util.textdbutil._
-import opennlp.fieldspring.util.experiment._
-import opennlp.fieldspring.util.ioutil._
-import opennlp.fieldspring.util.printutil.{errprint, set_errout_prefix}
+import argparser._
+import collection._
+import error.internal_error
+import experiment._
+import io._
+import print._
+import textdb._
 
-package object hadoop {
+package hadoop {
   class HadoopFileHandler(conf: Configuration) extends FileHandler {
     protected def get_file_system(filename: String) = {
       FileSystem.get(URI.create(filename), conf)
@@ -52,7 +54,7 @@ package object hadoop {
 
     def get_raw_input_stream(filename: String) =
       get_file_system(filename).open(new Path(filename))
-  
+
     def get_raw_output_stream(filename: String, append: Boolean) = {
       val fs = get_file_system(filename)
       val path = new Path(filename)
@@ -63,12 +65,21 @@ package object hadoop {
     }
 
     def split_filename(filename: String) = {
-      val path = new Path(filename)
-      (path.getParent.toString, path.getName)
+      canonicalize_split_filename(filename, f => {
+        val path = new Path(filename)
+        val (dir, tail) = (path.getParent, path.getName)
+        if (dir == null) (null: String, tail)
+        else (dir.toString, tail)
+      })
     }
 
     def join_filename(dir: String, file: String) =
       new Path(dir, file).toString
+
+    def exists(filename: String) = {
+      val status = get_file_system(filename).getFileStatus(new Path(filename))
+      status != null
+    }
 
     def is_directory(filename: String) = {
       val status = get_file_system(filename).getFileStatus(new Path(filename))
@@ -117,15 +128,14 @@ package object hadoop {
             if (multitype == classOf[String]) {
               conf.setStrings(confname, parser.get[Seq[String]](name): _*)
             } else
-              throw new UnsupportedOperationException(
+              internal_error(
                 "Don't know how to store sequence of type %s of parameter %s into a Hadoop Configuration"
                 format (multitype, name))
           }
-          case ty@_ => {
-            throw new UnsupportedOperationException(
+          case ty@_ =>
+            internal_error(
               "Don't know how to store type %s of parameter %s into a Hadoop Configuration"
               format (ty, name))
-          }
         }
       }
     }
@@ -164,11 +174,11 @@ package object hadoop {
           if (multitype == classOf[String])
             parser.set[Seq[String]](name, conf.getStrings(confname, parser.defaultValue[Seq[String]](name): _*).toSeq)
           else
-            throw new UnsupportedOperationException(
+            internal_error(
               "Don't know how to fetch sequence of type %s of parameter %s from a Hadoop Configuration"
               format (multitype, name))
         } else {
-          throw new UnsupportedOperationException(
+          internal_error(
             "Don't know how to store fetch %s of parameter %s from a Hadoop Configuration"
             format (ty, name))
         }
@@ -198,7 +208,7 @@ package object hadoop {
        initialize_hadoop_classes(), set the input and output files, and
        actually run the job.
      */
-    override def run_program() = {
+    override def run_program(args: Array[String]) = {
       import HadoopExperimentConfiguration._
       convert_parameters_to_hadoop_conf(hadoop_conf_prefix, arg_parser,
         hadoop_conf)
@@ -207,7 +217,7 @@ package object hadoop {
          "bootstrapping issue" alluded to in the comments on
          HadoopExperimentDriver.  We can't set the Job until it's created,
          and we can't create the Job until after we have set the appropriate
-         Fieldspring configuration parameters from the command-line arguments --
+         TextGrounder configuration parameters from the command-line arguments --
          but, we need the driver already created in order to parse the
          command-line arguments, because it participates in that process. */
       driver.set_job(job)
@@ -236,32 +246,22 @@ package object hadoop {
     }
   }
 
-  trait HadoopTextDBApp extends HadoopExperimentDriverApp {
+  trait HadoopTextDBMixin {
     def corpus_suffix: String
-
     def corpus_dirs: Iterable[String]
+  }
 
+  trait HadoopTextDBApp extends HadoopExperimentDriverApp with HadoopTextDBMixin {
     def initialize_hadoop_input(job: Job) {
       /* A very simple file processor that does nothing but note the files
          seen, for Hadoop's benefit. */
-      class RetrieveDocumentFilesFileProcessor(
-        suffix: String
-      ) extends TextDBLineProcessor[Unit](suffix) {
-        def process_lines(lines: Iterator[String],
-            filehand: FileHandler, file: String,
-            compression: String, realname: String) = {
-          errprint("Called with %s", file)
-          FileInputFormat.addInputPath(job, new Path(file))
-          (true, ())
-        }
+      val files =
+        iter_files_recursively(driver.get_file_handler, corpus_dirs).
+          filter(TextDB.filter_file_by_suffix(_, corpus_suffix))
+      for (file <- files) {
+         errprint("Adding %s to input path", file)
+         FileInputFormat.addInputPath(job, new Path(file))
       }
-
-      val fileproc = new RetrieveDocumentFilesFileProcessor(
-        // driver.params.eval_set + "-" + driver.document_file_suffix
-        corpus_suffix
-      )
-      fileproc.process_files(driver.get_file_handler, corpus_dirs)
-      // FileOutputFormat.setOutputPath(job, new Path(params.outfile))
     }
   }
 
@@ -300,7 +300,7 @@ package object hadoop {
     def get_configuration = get_job_context.getConfiguration
 
     def get_task_id = get_configuration.getInt("mapred.task.partition", -1)
-    
+
     /**
      * Find the Counter object for the given counter.
      */
@@ -385,15 +385,15 @@ package object hadoop {
   trait HadoopExperimentMapReducer {
     type TContext <: TaskInputOutputContext[_,_,_,_]
     type TDriver <: HadoopExperimentDriver
-    val driver = create_driver()
+    val driver = create_driver
     type TParam = driver.TParam
 
     def progname: String
 
     def create_param_object(ap: ArgParser): TParam
-    def create_driver(): TDriver
+    def create_driver: TDriver
 
-    /** Originally this was simply called 'setup', but used only for a
+    /* Originally this was simply called 'setup', but used only for a
      * trait that could be mixed into a mapper.  Expanding this to allow
      * it to be mixed into both a mapper and a reducer didn't cause problems
      * but creating a subtrait that override this function did cause problems,
@@ -418,12 +418,10 @@ package object hadoop {
       // Retrieve configuration values and store in `ap`
       convert_parameters_from_hadoop_conf(hadoop_conf_prefix, ap, conf)
       // Now create a class containing the stored configuration values
-      val params = create_param_object(ap)
+      val params = catch_parser_errors { create_param_object(ap) }
       driver.set_task_context(context)
-      context.progress
-      driver.set_parameters(params)
-      context.progress
-      driver.setup_for_run()
+      // FIXME: Is this necesssary?
+      driver.params = params
       context.progress
     }
   }
