@@ -1,12 +1,13 @@
-package opennlp.fieldspring.tr.util
+package opennlp.fieldspring
+package tr.util
 
-import java.io._
+import util.io.localfh
 
 object StopwordUtil {
 
   def populateStoplist(filename: String): Set[String] = {
     var stoplist:Set[String] = Set()
-    io.Source.fromFile(filename).getLines.foreach(line => stoplist += line)
+    localfh.openr(filename).foreach(line => stoplist += line)
     stoplist.toSet()
     stoplist
   }

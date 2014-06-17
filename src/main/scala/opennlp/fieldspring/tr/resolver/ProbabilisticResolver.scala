@@ -1,11 +1,12 @@
-package opennlp.fieldspring.tr.resolver
+package opennlp.fieldspring
+package tr.resolver
 
 import java.io._
 import java.util.ArrayList
 
-import opennlp.fieldspring.tr.text._
-import opennlp.fieldspring.tr.topo._
-import opennlp.fieldspring.tr.util._
+import tr.text._
+import tr.topo._
+import tr.util._
 
 import opennlp.maxent._
 import opennlp.maxent.io._

@@ -9,6 +9,7 @@ import opennlp.fieldspring.tr.topo.gaz._
 import opennlp.fieldspring.tr.text._
 import opennlp.fieldspring.tr.text.prep._
 import opennlp.fieldspring.tr.text.io._
+import opennlp.fieldspring.util.io.localfh
 
 import scala.collection.JavaConversions._
 
@@ -31,20 +32,15 @@ object FilterGeotaggedWiki extends App {
 
   val ids = new collection.mutable.HashSet[String]
 
-  val fis = new FileInputStream(wikiCorpusInputFile.value.get)
-  fis.read; fis.read
-  val cbzis = new BZip2CompressorInputStream(fis)
-  val in = new BufferedReader(new InputStreamReader(cbzis))
-  var curLine = in.readLine
-  while(curLine != null) {
-    ids += curLine.split("\t")(0)
-    curLine = in.readLine
+  for (line <- localfh.openr(wikiCorpusInputFile.value.get)) {
+    ids += line.split("\t")(0)
   }
-  in.close
 
   val wikiTextCorpus = Corpus.createStreamCorpus
 
-  wikiTextCorpus.addSource(new WikiTextSource(new BufferedReader(new FileReader(wikiTextInputFile.value.get))))
+  val reader = localfh.get_buffered_reader_handling_compression(
+    wikiTextInputFile.value.get)
+  wikiTextCorpus.addSource(new WikiTextSource(reader))
   wikiTextCorpus.setFormat(BaseApp.CORPUS_FORMAT.WIKITEXT)
 
   for(doc <- wikiTextCorpus) {

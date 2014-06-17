@@ -1,6 +1,8 @@
-package opennlp.fieldspring.tr.util
+package opennlp.fieldspring
+package tr.util
 
-import opennlp.fieldspring.tr.topo._
+import util.io.localfh
+import tr.topo._
 
 object LogUtil {
 
@@ -17,7 +19,7 @@ object LogUtil {
   val averageDistanceRE = """.*  Average distance from correct cell .*""".r
 
   def parseLogFile(filename: String): List[LogFileParseElement]/*List[(String, Coordinate, Coordinate, List[(Coordinate, Int)])]*/ = {
-    val lines = scala.io.Source.fromFile(filename).getLines
+    val lines = localfh.openr(filename)
 
     var docName:String = null
     var neighbors:List[(Coordinate, Int)] = null
@@ -70,7 +72,7 @@ object LogUtil {
   }
 
   def getNgramDists(filename: String): Map[Int, Map[String, Double]] = {
-    val lines = scala.io.Source.fromFile(filename).getLines
+    val lines = localfh.openr(filename)
 
     (for(line <- lines) yield {
       if(line.startsWith(CELL_BOTTOM_LEFT_COORD_PREFIX)) {

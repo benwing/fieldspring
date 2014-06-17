@@ -16,12 +16,13 @@
 //  limitations under the License.
 ///////////////////////////////////////////////////////////////////////////////
 
-package opennlp.fieldspring.preprocess
+package opennlp.fieldspring
+package preprocess
 
-import opennlp.fieldspring.tr.topo._
+import util.io.localfh
+import tr.topo._
 
 import java.io._
-import org.apache.commons.compress.compressors.bzip2._
 
 object ExtractGeotaggedListFromWikiDump {
 
@@ -44,13 +45,9 @@ object ExtractGeotaggedListFromWikiDump {
   val latd = """^.*[Ll]atd\s*=\s*(-?\d+\.?\d*+)\s*\|\s*[Ll]at[Nn][Ss]\s*=\s*([Nn]|[Ss])\s*\|\s*[Ll]ongd\s*=\s*(-?\d+\.?\d*+)\s*\|\s*[Ll]ong[Ee][Ww]\s*=\s*([Ee]|[Ww])\s*.*$""".r
 
   def main(args: Array[String]) {
-    val fileInputStream = new FileInputStream(new File(args(0)))
+    val in = localfh.get_buffered_reader_handling_compression(args(0))
     if(args.length >= 2)
       MAX_COUNT = args(1).toInt
-    //fileInputStream.read(); // used to be null pointer without this
-    //fileInputStream.read();
-    val cbzip2InputStream = new BZip2CompressorInputStream(fileInputStream)
-    val in = new BufferedReader(new InputStreamReader(cbzip2InputStream))
 
     val redirectsOut = new BufferedWriter(new FileWriter("redirects.txt"))
 

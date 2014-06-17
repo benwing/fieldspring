@@ -13,15 +13,17 @@
 //  See the License for the specific language governing permissions and
 //  limitations under the License.
 ///////////////////////////////////////////////////////////////////////////////
-package opennlp.fieldspring.tr.app
+package opennlp.fieldspring
+package tr.app
 
 import java.io._
 
-import opennlp.fieldspring.tr.topo.gaz._
-import opennlp.fieldspring.tr.text._
-import opennlp.fieldspring.tr.text.io._
-import opennlp.fieldspring.tr.text.prep._
-import opennlp.fieldspring.tr.util.Constants
+import tr.topo.gaz._
+import tr.text._
+import tr.text.io._
+import tr.text.prep._
+import tr.util.Constants
+import util.io.localfh
 
 object Preprocess extends App {
   override def main(args: Array[String]) {
@@ -36,7 +38,7 @@ object Preprocess extends App {
 
     val corpus = Corpus.createStreamCorpus
 
-    val in = new BufferedReader(new FileReader(args(0)))
+    val in = localfh.get_buffered_reader_handling_compression(args(0))
     corpus.addSource(
      new ToponymAnnotator(new PlainTextSource(in, divider, tokenizer, args(0)),
      recognizer, gazetteer

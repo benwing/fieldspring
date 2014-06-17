@@ -1,10 +1,13 @@
-package opennlp.fieldspring.tr.app
+package opennlp.fieldspring
+package tr.app
+
+import util.io.localfh
 
 import net.liftweb.json._
 import net.liftweb.json.JsonDSL._
 
 object ConvertGeoTextToJSON extends App {
-  for(line <- scala.io.Source.fromFile(args(0), "ISO-8859-1").getLines) {
+  for (line <- localfh.openr(args(0), encoding="ISO-8859-1")) {
     val tokens = line.split("\t")
     println(pretty(render(
       ("lat" -> tokens(3).toDouble) ~

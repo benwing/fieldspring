@@ -16,12 +16,14 @@
 //  limitations under the License.
 ///////////////////////////////////////////////////////////////////////////////
 
-package opennlp.fieldspring.preprocess
+package opennlp.fieldspring
+package preprocess
 
-import opennlp.fieldspring.tr.util._
-import opennlp.fieldspring.tr.topo._
-import opennlp.fieldspring.tr.app._
-import opennlp.fieldspring.tr.topo.gaz._
+import util.io.localfh
+import tr.util._
+import tr.topo._
+import tr.app._
+import tr.topo.gaz._
 
 import java.io._
 //import java.util._
@@ -120,9 +122,8 @@ object ExtractLinksFromWikiDump {
       Set()
     }
 
-    val fileInputStream = new FileInputStream(new File(rawWikiInputFile.value.get))
-    val cbzip2InputStream = new BZip2CompressorInputStream(fileInputStream)
-    val in = new BufferedReader(new InputStreamReader(cbzip2InputStream))
+    val in = localfh.get_buffered_reader_handling_compression(
+      rawWikiInputFile.value.get)
 
     //var totalPageCount = 0
     //var geotaggedPageCount = 0

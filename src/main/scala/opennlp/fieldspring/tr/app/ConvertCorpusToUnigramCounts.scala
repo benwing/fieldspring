@@ -1,14 +1,16 @@
-package opennlp.fieldspring.tr.app
+package opennlp.fieldspring
+package tr.app
 
 import java.io._
 import java.util.zip._
 
-import opennlp.fieldspring.tr.util._
-import opennlp.fieldspring.tr.topo._
-import opennlp.fieldspring.tr.topo.gaz._
-import opennlp.fieldspring.tr.text._
-import opennlp.fieldspring.tr.text.prep._
-import opennlp.fieldspring.tr.text.io._
+import util.io.localfh
+import tr.util._
+import tr.topo._
+import tr.topo.gaz._
+import tr.text._
+import tr.text.prep._
+import tr.text.io._
 
 import scala.collection.JavaConversions._
 
@@ -33,9 +35,9 @@ object ConvertCorpusToUnigramCounts extends BaseApp {
       //val gnGaz = ois.readObject.asInstanceOf[GeoNamesGazetteer]
       //gis.close
       corpus.addSource(new PlainTextSource(
-        new BufferedReader(new FileReader(args(0))), new OpenNLPSentenceDivider(), tokenizer))
+        localfh.get_buffered_reader_handling_compression(args(0)), new OpenNLPSentenceDivider(), tokenizer))
       //corpus.addSource(new ToponymAnnotator(new PlainTextSource(
-      //		new BufferedReader(new FileReader(args(0))), new OpenNLPSentenceDivider(), tokenizer),
+      // localfh.get_buffered_reader_handling_compression(args(0)), new OpenNLPSentenceDivider(), tokenizer),
       //          recognizer, gnGaz, null))
       corpus.setFormat(BaseApp.CORPUS_FORMAT.PLAIN)
       */

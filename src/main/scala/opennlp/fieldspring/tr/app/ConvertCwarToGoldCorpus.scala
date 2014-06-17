@@ -1,9 +1,11 @@
-package opennlp.fieldspring.tr.app
+package opennlp.fieldspring
+package tr.app
 
-import opennlp.fieldspring.tr.topo._
-import opennlp.fieldspring.tr.util._
-import opennlp.fieldspring.tr.topo.gaz._
-import opennlp.fieldspring.tr.text.io._
+import util.io.localfh
+import tr.topo._
+import tr.util._
+import tr.topo.gaz._
+import tr.text.io._
 import java.util.zip._
 
 import java.io._
@@ -72,7 +74,7 @@ object ConvertCwarToGoldCorpus extends App {
   for(file <- corpusFiles) {
     println("  <doc id=\""+file.getName+"\">")
 
-    for(line <- scala.io.Source.fromFile(file).getLines.map(_.trim).filter(_.length > 0)) {
+    for(line <- localfh.openr(file.toString).map(_.trim).filter(_.length > 0)) {
       println("    <s>")
       for(token <- line.split(" ")) {
         if(toponymRE.findFirstIn(token) != None) {

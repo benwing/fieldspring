@@ -9,10 +9,10 @@ import opennlp.fieldspring.tr.topo.gaz._
 import opennlp.fieldspring.tr.text._
 import opennlp.fieldspring.tr.text.prep._
 import opennlp.fieldspring.tr.text.io._
+import opennlp.fieldspring.util.io.localfh
 
 import scala.collection.JavaConversions._
 
-import org.apache.commons.compress.compressors.bzip2._
 import org.clapper.argot._
 import ArgotConverters._
 
@@ -51,18 +51,11 @@ object SupervisedTRFeatureExtractor extends App {
 
   println("Reading Wikipedia geotags from " + wikiCorpusInputFile.value.get + "...")
   val idsToCoords = new collection.mutable.HashMap[String, Coordinate]
-  val fis = new FileInputStream(wikiCorpusInputFile.value.get)
-  //fis.read; fis.read
-  val cbzis = new BZip2CompressorInputStream(fis)
-  val in = new BufferedReader(new InputStreamReader(cbzis))
-  var curLine = in.readLine
-  while(curLine != null) {
+  for (curLine <- localfh.openr(wikiCorpusInputFile.value.get)) {
     val tokens = curLine.split("\t")
     val coordTokens = tokens(2).split(",")
     idsToCoords.put(tokens(0), Coordinate.fromDegrees(coordTokens(0).toDouble, coordTokens(1).toDouble))
-    curLine = in.readLine
   }
-  in.close
  
   println("Reading serialized gazetteer from " + gazInputFile.value.get + " ...")
   val gis = new GZIPInputStream(new FileInputStream(gazInputFile.value.get))
@@ -77,7 +70,9 @@ object SupervisedTRFeatureExtractor extends App {
 
   val wikiTextCorpus = Corpus.createStreamCorpus
   
-  wikiTextCorpus.addSource(new ToponymAnnotator(new WikiTextSource(new BufferedReader(new FileReader(wikiTextInputFile.value.get))), recognizer, gnGaz))
+  val reader = localfh.get_buffered_reader_handling_compression(
+    wikiTextInputFile.value.get)
+  wikiTextCorpus.addSource(new ToponymAnnotator(new WikiTextSource(reader), recognizer, gnGaz))
   wikiTextCorpus.setFormat(BaseApp.CORPUS_FORMAT.WIKITEXT)
 
   val stoplist:Set[String] =
