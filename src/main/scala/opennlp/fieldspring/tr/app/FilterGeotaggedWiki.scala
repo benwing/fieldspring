@@ -1,23 +1,26 @@
-package opennlp.fieldspring.tr.app
+package opennlp.fieldspring
+package tr.app
 
 import java.io._
 import java.util.zip._
 
-import opennlp.fieldspring.tr.util._
-import opennlp.fieldspring.tr.topo._
-import opennlp.fieldspring.tr.topo.gaz._
-import opennlp.fieldspring.tr.text._
-import opennlp.fieldspring.tr.text.prep._
-import opennlp.fieldspring.tr.text.io._
-import opennlp.fieldspring.util.io.localfh
+import util.io.localfh
+import util.metering._
+import util.os._
+import tr.util._
+import tr.topo._
+import tr.topo.gaz._
+import tr.text._
+import tr.text.prep._
+import tr.text.io._
 
 import scala.collection.JavaConversions._
 
-import org.apache.commons.compress.compressors.bzip2._
 import org.clapper.argot._
 import ArgotConverters._
 
 object FilterGeotaggedWiki extends App {
+  initialize_osutil()
   val parser = new ArgotParser("fieldspring run opennlp.fieldspring.tr.app.FilterGeotaggedWiki", preUsage = Some("Fieldspring"))
 
   val wikiTextInputFile = parser.option[String](List("w", "wiki"), "wiki", "wiki text input file")
@@ -32,7 +35,8 @@ object FilterGeotaggedWiki extends App {
 
   val ids = new collection.mutable.HashSet[String]
 
-  for (line <- localfh.openr(wikiCorpusInputFile.value.get)) {
+  val task = new Meter("reading", "line")
+  task.foreach(localfh.openr(wikiCorpusInputFile.value.get)) { line =>
     ids += line.split("\t")(0)
   }
 
@@ -43,7 +47,8 @@ object FilterGeotaggedWiki extends App {
   wikiTextCorpus.addSource(new WikiTextSource(reader))
   wikiTextCorpus.setFormat(BaseApp.CORPUS_FORMAT.WIKITEXT)
 
-  for(doc <- wikiTextCorpus) {
+  val task2 = new Meter("processing", "document")
+  task2.foreach(wikiTextCorpus) { doc =>
     if(ids contains doc.getId) {
       println("Article title: " + doc.title)
       println("Article ID: " + doc.getId)
