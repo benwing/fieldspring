@@ -45,14 +45,9 @@ libraryDependencies ++= Seq(
   // The use of %% instead of % causes the Scala version to get appended,
   // i.e. it's equivalent to the use of single % with "argot_2.10".
   // This is for Scala-specific dependencies.
-  // Remove this for the moment because there's a modified version (styled
-  // as version "0.3.5-benwing") in the unmanaged lib/. (Fuck me, our
-  // unmanaged junto.jar also includes a copy of Argot 0.3.5, so we will have
-  // class path problems with a newer managed version of Argot until we
-  // remove this!)
-  // "org.clapper" %% "argot" % "1.0.1",
+  "org.clapper" %% "argot" % "1.0.1",
   // If we remove Argot we need to include Argot's dependencies.
-  "org.clapper" %% "grizzled-scala" % "1.2",
+  // "org.clapper" %% "grizzled-scala" % "1.2",
   //
   // The following is the old way we got Hadoop added.  Out of date, has lots
   // of problems.  Now it's included as a dependency of Scoobi.
