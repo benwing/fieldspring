@@ -1,5 +1,8 @@
 #!/bin/bash
 
+wikitag=enwiki-20131104
+mem=8g
+
 corpusname=$1; # tr or cwar
 split=$2; # dev or test
 topidmethod=$3; # gt or ner
@@ -29,9 +32,7 @@ else
     logfilesuffix=""
 fi
 
-logfile=enwiki-$logfileprefix$split$logfilesuffix-100.log;
-
-mem=8g;
+logfile=$wikitag-$logfileprefix$split$logfilesuffix-100.log;
 
 function prettyprint {
     if [ $topidmethod == "ner" ]; then
