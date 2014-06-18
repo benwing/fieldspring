@@ -404,7 +404,9 @@ package io {
         errors: String = "strict", bufsize: Int = 0) = {
       val (is, comtype, realname) =
         open_input_stream_with_compression_info(filename, compression,
-          bufsize = -1)
+          // DO NOT set this to -1. The lack of buffering leads to 100x
+          // slowdown in bzip2 decompression.
+          bufsize = bufsize)
       val reader = get_buffered_reader(is, encoding, errors, bufsize)
       (reader, comtype, realname)
     }
