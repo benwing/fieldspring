@@ -2,6 +2,7 @@ package opennlp.fieldspring
 package tr.util
 
 import util.io.localfh
+import util.print.errprint
 import tr.topo._
 
 object LogUtil {
@@ -12,11 +13,12 @@ object LogUtil {
   val NGRAM_DIST_PREFIX = "unseen mass, "
   val ngramAndCountRE = """^(\S+)\=(\S+)$""".r
 
-  val documentLineRE = """.*Document (.*) at (\S+),(\S+):.*""".r
-  val predictedCellLineRE = """.*  Predicted cell \(at rank ([0-9]+), kl-div (\S+?)\): [A-Za-z]+Cell\(.*?, (\S+?),(\S+?):.*""".r
-  val neighborRE = """.*  #([0-9]+) close neighbor: (\S+?),(\S+?);.*""".r
-  val predictedCellCentralPointLineRE = """.* to predicted cell central point at \((\S+?),(\S+?)\).*""".r
-  val averageDistanceRE = """.*  Average distance from correct cell .*""".r
+  val documentLineRE = """.*Document (.*) at \(?(\S+?),(\S+?)\)?:.*""".r
+  val predictedCellLineRE = """.*  Predicted cell \(at rank ([0-9]+), kl-div (\S+?)\): [A-Za-z]+Cell\(#.*?, (\S+?),(\S+?):.*""".r
+  val oldPredictedCellLineRE = """.*  Predicted cell \(at rank ([0-9]+), kl-div (\S+?)\): GeoCell\(\((\S+?),(\S+?)\).*""".r
+  val neighborRE = """.*  #([0-9]+) close neighbor: \(?(\S+?),(\S+?)\)?;.*""".r
+  val predictedCellCentralPointLineRE = """.* to predicted cell (?:central point|center) at \((\S+?),(\S+?)\).*""".r
+  val averageDistanceRE = """.*  Average distance from .*""".r
 
   def parseLogFile(filename: String): List[LogFileParseElement]/*List[(String, Coordinate, Coordinate, List[(Coordinate, Int)])]*/ = {
     val lines = localfh.openr(filename)
@@ -45,6 +47,11 @@ object LogUtil {
             predCells = predCells ::: ((rank.toInt, kl.toDouble, blCoord) :: Nil)
             None
           }
+          case oldPredictedCellLineRE(rank, kl, bllat, bllong) => {
+            val blCoord = Coordinate.fromDegrees(bllat.toDouble, bllong.toDouble)
+            predCells = predCells ::: ((rank.toInt, kl.toDouble, blCoord) :: Nil)
+            None
+          }
           case neighborRE(rank, lat, long) => {
             val curNeighbor = Coordinate.fromDegrees(lat.toDouble, long.toDouble)
             neighbors = neighbors ::: ((curNeighbor, rank.toInt) :: Nil)
@@ -64,7 +71,10 @@ object LogUtil {
             assert(predCoord != null)
             Some(new LogFileParseElement(docName, trueCoord, predCoord, predCells, neighbors))
           }
-          case _ => None
+          case _ => {
+            //errprint("Unparsed line: %s", line)
+            None
+          }
         }
       }
       else None
