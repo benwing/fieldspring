@@ -1,15 +1,18 @@
-package opennlp.fieldspring.tr.app
+package opennlp.fieldspring
+package tr.app
 
 import java.io._
 import java.util.zip._
 
-import opennlp.fieldspring.tr.util._
-import opennlp.fieldspring.tr.topo._
-import opennlp.fieldspring.tr.topo.gaz._
-import opennlp.fieldspring.tr.text._
-import opennlp.fieldspring.tr.text.prep._
-import opennlp.fieldspring.tr.text.io._
-import opennlp.fieldspring.util.io.localfh
+import util.io.localfh
+import util.metering._
+import util.os._
+import tr.util._
+import tr.topo._
+import tr.topo.gaz._
+import tr.text._
+import tr.text.prep._
+import tr.text.io._
 
 import scala.collection.JavaConversions._
 
@@ -21,6 +24,7 @@ import opennlp.maxent.io._
 import opennlp.model._
 
 object SupervisedTRFeatureExtractor extends App {
+  initialize_osutil()
   val parser = new ArgotParser("fieldspring run opennlp.fieldspring.tr.app.SupervisedTRMaxentModelTrainer", preUsage = Some("Fieldspring"))
 
   val wikiCorpusInputFile = parser.option[String](List("c", "corpus"), "corpus", "wiki training corpus input file")
@@ -77,7 +81,7 @@ object SupervisedTRFeatureExtractor extends App {
   val stoplist:Set[String] =
     if(stoplistInputFile.value != None) {
       println("Reading stopwords file from " + stoplistInputFile.value.get + " ...")
-      scala.io.Source.fromFile(stoplistInputFile.value.get).getLines.toSet
+      localfh.openr(stoplistInputFile.value.get).toSet
     }
     else {
       println("No stopwords file specified. Using an empty stopword list.")
@@ -87,7 +91,7 @@ object SupervisedTRFeatureExtractor extends App {
   println("Building training sets for each toponym type...")
 
   val toponymsToTrainingSets = new collection.mutable.HashMap[String, List[(Array[String], String)]]
-  for(doc <- wikiTextCorpus) {
+  (new Meter("processing", "document")).foreach(wikiTextCorpus) { doc =>
     if(idsToCoords.containsKey(doc.getId)) {
       val docCoord = idsToCoords(doc.getId)
       println(doc.getId+" has a geotag: "+docCoord)
@@ -178,12 +182,14 @@ object SupervisedTRFeatureExtractor extends App {
 }
 
 object SupervisedTRMaxentModelTrainer extends App {
+  initialize_osutil()
 
   val iterations = 10
   val cutoff = 2
 
   val dir = new File(args(0))
-  for(file <- dir.listFiles.filter(_.getName.endsWith(".txt"))) {
+  val files = dir.listFiles.filter(_.getName.endsWith(".txt"))
+  (new Meter("training", "file")).foreach(files) { file =>
     try {
       val reader = localfh.open_buffered_reader(file.toString)
       val dataStream = new PlainTextByLineDataStream(reader)
