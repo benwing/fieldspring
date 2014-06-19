@@ -1,6 +1,7 @@
 #!/bin/bash
 
 wikitag=enwiki-20131104
+wikilogsuffix=-nbayes-dirichlet
 mem=8g
 
 corpusname=$1; # tr or cwar
@@ -24,7 +25,7 @@ corpusdir=${4%/}/$split/; # fourth argument is path to corpus in XML format
 if [ $corpusname == "cwar" ]; then
     logfileprefix=cwar
 else
-    logfileprefix=trconll
+    logfileprefix=trf
 fi
 if [ $corpusname == "cwar" ]; then
     logfilesuffix="-20spd"
@@ -32,7 +33,7 @@ else
     logfilesuffix=""
 fi
 
-logfile=$wikitag-$logfileprefix$split$logfilesuffix-100.log;
+logfile=$wikitag-$logfileprefix$split$logfilesuffix-g1dpc-100$wikilogsuffix.log;
 
 function prettyprint {
     if [ $topidmethod == "ner" ]; then
