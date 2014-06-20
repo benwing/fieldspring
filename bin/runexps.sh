@@ -6,6 +6,9 @@ MEMORY=
 WIKITAG=enwiki-20131104
 WIKILOGSUFFIX=nbayes-dirichlet
 FSOPTS=
+TEMPFILE=temp-results.$$.txt
+
+echo "Using temporary file $TEMPFILE"
 
 while true ; do
   case "$1" in
@@ -81,26 +84,26 @@ function prettyprint {
 
 function getr1 {
     if [ $topidmethod == "ner" ]; then
-        echo `grep -A50 "$1" temp-results.txt | grep "P: " | tail -1 | sed -e 's/^.*: //'`
+        echo `grep -A50 "$1" $TEMPFILE | grep "P: " | tail -1 | sed -e 's/^.*: //'`
     else
-        echo `grep -A50 "$1" temp-results.txt | grep "Mean error distance (km): " | tail -1 | sed -e 's/^.*: //'`
+        echo `grep -A50 "$1" $TEMPFILE | grep "Mean error distance (km): " | tail -1 | sed -e 's/^.*: //'`
     fi
 }
 
 function getr2 {
     if [ $topidmethod == "ner" ]; then
-        echo `grep -A50 "$1" temp-results.txt | grep "R: " | tail -1 | sed -e 's/^.*: //'`
+        echo `grep -A50 "$1" $TEMPFILE | grep "R: " | tail -1 | sed -e 's/^.*: //'`
     else
-        echo `grep -A50 "$1" temp-results.txt | grep "Median error distance (km): " | tail -1 | sed -e 's/^.*: //'`
+        echo `grep -A50 "$1" $TEMPFILE | grep "Median error distance (km): " | tail -1 | sed -e 's/^.*: //'`
     fi
 }
 
 function getr3 {
-    echo `grep -A50 "$1" temp-results.txt | grep "F: " | tail -1 | sed -e 's/^.*: //'`
+    echo `grep -A50 "$1" $TEMPFILE | grep "F: " | tail -1 | sed -e 's/^.*: //'`
 }
 
 function getr4 {
-    echo `grep -A50 "$1" temp-results.txt | grep "Fraction of distances within 161 km: " | tail -1 | sed -e 's/^.*: //'`
+    echo `grep -A50 "$1" $TEMPFILE | grep "Fraction of distances within 161 km: " | tail -1 | sed -e 's/^.*: //'`
 }
 
 function printres {
@@ -114,15 +117,15 @@ function printres {
 
 }
 
-if [ -e temp-results.txt ]; then
-    rm temp-results.txt
+if [ -e $TEMPFILE ]; then
+    rm $TEMPFILE
 fi
 
 execute()
 {
   RUNCMD="$1"; shift
-  echo Executing: $RUNCMD ${1+"$@"} >> temp-results.txt
-  $RUNCMD ${1+"$@"} >> temp-results.txt
+  echo Executing: $RUNCMD ${1+"$@"} >> $TEMPFILE
+  $RUNCMD ${1+"$@"} >> $TEMPFILE
 }
 
 dofieldspring()
@@ -141,7 +144,7 @@ for method in $methods; do
 case $method in
 
 oracle )
-echo "\oracle" >> temp-results.txt
+echo "\oracle" >> $TEMPFILE
 dofieldspring resolve -i $corpusdir -sci $sercorpusfile -cf tr -r random -oracle
 printres "\oracle"
 ;;
@@ -153,7 +156,7 @@ r3=""
 r4=""
 for i in 1 2 3
 do
-  echo "\rand"$i >> temp-results.txt
+  echo "\rand"$i >> $TEMPFILE
   dofieldspring resolve -i $corpusdir -sci $sercorpusfile -cf tr -r random
   r1+=`getr1 "\rand$i"`" "
   r2+=`getr2 "\rand$i"`" "
@@ -168,7 +171,7 @@ prettyprint "\rand" $r1 $r2 $r3 $r4
 ;;
 
 population )
-echo "\population" >> temp-results.txt
+echo "\population" >> $TEMPFILE
 dofieldspring resolve -i $corpusdir -sci $sercorpusfile -cf tr -r pop
 printres "\population"
 ;;
@@ -180,7 +183,7 @@ r3=""
 r4=""
 for i in 1 2 3
 do
-  echo "bmd"$i >> temp-results.txt
+  echo "bmd"$i >> $TEMPFILE
   dofieldspring resolve -i $corpusdir -sci $sercorpusfile -cf tr -r wmd -it 1
   r1+=`getr1 "bmd$i"`" "
   r2+=`getr2 "bmd$i"`" "
@@ -202,7 +205,7 @@ r3=""
 r4=""
 for i in 1 2 3
 do
-  echo "spider"$i >> temp-results.txt
+  echo "spider"$i >> $TEMPFILE
   dofieldspring resolve -i $corpusdir -sci $sercorpusfile -cf tr -r wmd -it 10
   r1+=`getr1 "spider$i"`" "
   r2+=`getr2 "spider$i"`" "
@@ -217,24 +220,24 @@ prettyprint "\spider" $r1 $r2 $r3 $r4
 ;;
 
 tripdl )
-echo "\tripdl" >> temp-results.txt
+echo "\tripdl" >> $TEMPFILE
 dofieldspring resolve -i $corpusdir -sci $sercorpusfile -cf tr -im $modelsdir -l $logfile -r prob -pdg
 printres "\tripdl"
 ;;
 
 wistr )
-echo "\wistr" >> temp-results.txt
+echo "\wistr" >> $TEMPFILE
 dofieldspring resolve -i $corpusdir -sci $sercorpusfile -cf tr -im $modelsdir -l $logfile -r maxent
 printres "\wistr"
 ;;
 
 prob-prelim )
-echo "Necessary for next step:" >> temp-results.txt
+echo "Necessary for next step:" >> $TEMPFILE
 dofieldspring resolve -i $corpusdir -sci $sercorpusfile -cf tr -im $modelsdir -l $logfile -r prob -pme
 ;;
 
 wistr+spider )
-echo "\wistr+\spider" >> temp-results.txt
+echo "\wistr+\spider" >> $TEMPFILE
 dofieldspring resolve -i $corpusdir -sci $sercorpusfile -cf tr -im $modelsdir -l $logfile -r wmd -it 10 -rwf
 r1=`getr1 "wistr+"`
 r2=`getr2 "wistr+"`
@@ -244,13 +247,13 @@ prettyprint "\wistr+\spider" $r1 $r2 $r3 $r4
 ;;
 
 trawl )
-echo "\trawl" >> temp-results.txt
+echo "\trawl" >> $TEMPFILE
 dofieldspring resolve -i $corpusdir -sci $sercorpusfile -cf tr -im $modelsdir -l $logfile -r prob
 printres "\trawl"
 ;;
 
 trawl+spider )
-echo "\trawl+\spider" >> temp-results.txt
+echo "\trawl+\spider" >> $TEMPFILE
 dofieldspring resolve -i $corpusdir -sci $sercorpusfile -cf tr -im $modelsdir -l $logfile -r wmd -it 10 -rwf
 r1=`getr1 "\trawl+"`
 r2=`getr2 "\trawl+"`
@@ -260,37 +263,37 @@ prettyprint "\trawl+\spider" $r1 $r2 $r3 $r4
 ;;
 
 text-construct-tpp-grid )
-#echo "TextConstructTPPGrid" >> temp-results.txt
+#echo "TextConstructTPPGrid" >> $TEMPFILE
 #dofieldspring resolve -i $corpusdir -sci $sercorpusfile -cf tr -im $modelsdir -r constructiontpp -dpc 10
 #printres "TextConstructTPPGrid"
 ;;
 
 text-construct-tpp-cluster )
-#echo "TextConstructTPPCluster" >> temp-results.txt
+#echo "TextConstructTPPCluster" >> $TEMPFILE
 #dofieldspring resolve -i $corpusdir -sci $sercorpusfile -cf tr -im $modelsdir -r constructiontpp -t 250
 #printres "TextConstructTPPCluster"
 ;;
 
 text-aco-tpp-grid )
-#echo "TextACOTPPGrid" >> temp-results.txt
+#echo "TextACOTPPGrid" >> $TEMPFILE
 #dofieldspring resolve -i $corpusdir -sci $sercorpusfile -cf tr -im $modelsdir -r acotpp -dpc 10
 #printres "TextACOTPPGrid"
 ;;
 
 text-aco-tpp-cluster )
-#echo "TextACOTPPCluster" >> temp-results.txt
+#echo "TextACOTPPCluster" >> $TEMPFILE
 #dofieldspring resolve -i $corpusdir -sci $sercorpusfile -cf tr -im $modelsdir -r acotpp -t 250
 #printres "TextACOTPPCluster"
 ;;
 
 listr )
-echo "\listr" >> temp-results.txt
+echo "\listr" >> $TEMPFILE
 dofieldspring resolve -i $corpusdir -sci $sercorpusfile -cf tr -im $listrmodelsdir -l $logfile -r maxent
 printres "\listr"
 ;;
 
 wistr+listr-mix )
-echo "\wistr+\listr$_{Mix}$" >> temp-results.txt
+echo "\wistr+\listr$_{Mix}$" >> $TEMPFILE
 dofieldspring resolve -i $corpusdir -sci $sercorpusfile -cf tr -im $wistrlistrmodelsdir -l $logfile -r maxent
 r1=`getr1 "Mix"`
 r2=`getr2 "Mix"`
@@ -300,7 +303,7 @@ prettyprint "\wistr+\listr{Mix}" $r1 $r2 $r3 $r4
 ;;
 
 wistr+listr-backoff )
-echo "\wistr+\listr$_{Boff}$" >> temp-results.txt
+echo "\wistr+\listr$_{Boff}$" >> $TEMPFILE
 dofieldspring resolve -i $corpusdir -sci $sercorpusfile -cf tr -im $listrmodelsdir:$modelsdir -l $logfile -r maxent
 r1=`getr1 "Boff"`
 r2=`getr2 "Boff"`
