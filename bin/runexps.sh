@@ -34,7 +34,7 @@ if [ -n "$WIKILOGSUFFIX" ]; then
   WIKILOGSUFFIX="-$WIKILOGSUFFIX"
 fi
 
-corpusname=$1; # tr or cwar
+corpusname=$1; # trf or cwar
 split=$2; # dev or test
 topidmethod=$3; # gt or ner
 modelsdir=wistr-models-$WIKITAG-$corpusname$split-gt/;
@@ -63,7 +63,13 @@ else
     logfilesuffix=""
 fi
 
-logfile=$WIKITAG-$logfileprefix$split$logfilesuffix-g1dpc-100$WIKILOGSUFFIX.log;
+logfile=$WIKITAG-$logfileprefix$split-g1dpc$logfilesuffix-100$WIKILOGSUFFIX.log
+
+if [ -e "$logfile.bz2" ]; then
+  logfile="$logfile.bz2"
+elif [ -e "$logfile.gz" ]; then
+  logfile="$logfile.gz"
+fi
 
 function prettyprint {
     if [ $topidmethod == "ner" ]; then
