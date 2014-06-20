@@ -5,6 +5,7 @@ DEBUG=no
 MEMORY=
 WIKITAG=enwiki-20131104
 WIKILOGSUFFIX=nbayes-dirichlet
+CWARSUFFIX=20spd
 FSOPTS=
 TEMPFILE=temp-results.$$.txt
 
@@ -18,6 +19,8 @@ while true ; do
     -wikitag | --wikitag ) WIKITAG="$2"; shift 2 ;;
     -wiki-log-suffix | --wiki-log-suffix | -wikilogsuffix | --wikilogsuffix )
       WIKILOGSUFFIX="$2"; shift 2 ;;
+    -cwar-suffix | --cwar-suffix | -cwarsuffix | --cwarsuffix )
+      CWARSUFFIX="$2"; shift 2 ;;
     ## Options passed to fieldspring
     -minheap | --minheap ) FSOPTS="$FSOPTS --minheap $2"; shift 2 ;;
     -maxheap | --maxheap ) FSOPTS="$FSOPTS --maxheap $2"; shift 2 ;;
@@ -36,35 +39,29 @@ done
 if [ -n "$WIKILOGSUFFIX" ]; then
   WIKILOGSUFFIX="-$WIKILOGSUFFIX"
 fi
+if [ -n "$CWARSUFFIX" ]; then
+  CWARSUFFIX="-$CWARSUFFIX"
+fi
 
-corpusname=$1; # trf or cwar
+corpusname=$1; # e.g. trf or cwar
 split=$2; # dev or test
 topidmethod=$3; # gt or ner
 modelsdir=wistr-models-$WIKITAG-$corpusname$split-gt/;
 listrmodelsdir=listr-models-$WIKITAG-$corpusname$split-gt/;
 wistrlistrmodelsdir=wistrlistr-models-$WIKITAG-$corpusname$split-gt/;
-if [ $corpusname == "cwar" ]; then
-    sercorpusprefix=cwar
-else
-    sercorpusprefix=trf
-fi
-if [ $corpusname == "cwar" ]; then
-    sercorpussuffix="-20spd"
-else
-    sercorpussuffix=""
-fi
+sercorpusprefix=$corpusname
+case "$corpusname" in
+  cwar* ) sercorpussuffix="$CWARSUFFIX" ;;
+  * ) sercorpussuffix="" ;;
+esac
+
 sercorpusfile=$sercorpusprefix$split-$topidmethod-g1dpc$sercorpussuffix.ser.gz;
 corpusdir=${4%/}/$split/; # fourth argument is path to corpus in XML format
-if [ $corpusname == "cwar" ]; then
-    logfileprefix=cwar
-else
-    logfileprefix=trf
-fi
-if [ $corpusname == "cwar" ]; then
-    logfilesuffix="-20spd"
-else
-    logfilesuffix=""
-fi
+logfileprefix=$corpusname
+case "$corpusname" in
+  cwar* ) logfilesuffix="$CWARSUFFIX" ;;
+  * ) logfilesuffix="" ;;
+esac
 
 logfile=$WIKITAG-$logfileprefix$split-g1dpc$logfilesuffix-100$WIKILOGSUFFIX.log
 
