@@ -26,10 +26,10 @@ import opennlp.fieldspring.tr.text.Toponym;
 import opennlp.fieldspring.tr.topo.Location;
 import opennlp.fieldspring.tr.topo.Region;
 
-public class SharedNEEvaluator extends Evaluator {
+public class SharedNEEvaluator<A extends Token> extends Evaluator<A> {
   /* The given corpus should include either gold or selected candidates or
    * both. */
-  public SharedNEEvaluator(Corpus<? extends Token> corpus) {
+  public SharedNEEvaluator(Corpus<A> corpus) {
     super(corpus);
   }
 
@@ -41,16 +41,16 @@ public class SharedNEEvaluator extends Evaluator {
 
   /* Evaluate the given corpus using either the gold or selected candidates in
    * the current corpus. */
-  public Report evaluate(Corpus<Token> pred, boolean useSelected) {
+  public Report evaluate(Corpus<A> pred, boolean useSelected) {
     Report report = new Report();
 
-    Iterator<Document<Token>> goldDocs = this.corpus.iterator();
-    Iterator<Document<Token>> predDocs = pred.iterator();
+    Iterator<Document<A>> goldDocs = this.corpus.iterator();
+    Iterator<Document<A>> predDocs = pred.iterator();
 
     /* Iterate over documents in sync. */
     while (goldDocs.hasNext() && predDocs.hasNext()) {
-      Iterator<Sentence<Token>> goldSents = goldDocs.next().iterator();
-      Iterator<Sentence<Token>> predSents = predDocs.next().iterator();
+      Iterator<Sentence<A>> goldSents = goldDocs.next().iterator();
+      Iterator<Sentence<A>> predSents = predDocs.next().iterator();
       
       /* Iterate over sentences in sync. */
       while (goldSents.hasNext() && predSents.hasNext()) {
@@ -94,7 +94,7 @@ public class SharedNEEvaluator extends Evaluator {
   }
 
   /* A convenience method providing a default for evaluate. */
-  public Report evaluate(Corpus<Token> pred) {
+  public Report evaluate(Corpus<A> pred) {
     return this.evaluate(pred, false);
   }
 }

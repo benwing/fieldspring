@@ -9,7 +9,7 @@ import opennlp.fieldspring.tr.topo.*;
 import java.util.*;
 import java.io.*;
 
-public class SignatureEvaluator extends Evaluator {
+public class SignatureEvaluator<A extends Token> extends Evaluator<A> {
 
     private static final int CONTEXT_WINDOW_SIZE = 20;
 
@@ -20,12 +20,12 @@ public class SignatureEvaluator extends Evaluator {
 
     private Map<String, List<Location> > predCandidates = new HashMap<String, List<Location> >();
 
-    public SignatureEvaluator(Corpus goldCorpus, boolean doOracleEval) {
+    public SignatureEvaluator(Corpus<A> goldCorpus, boolean doOracleEval) {
         super(goldCorpus);
         this.doOracleEval = doOracleEval;
     }
 
-    public SignatureEvaluator(Corpus goldCorpus) {
+    public SignatureEvaluator(Corpus<A> goldCorpus) {
         this(goldCorpus, false);
     }
 
@@ -33,17 +33,17 @@ public class SignatureEvaluator extends Evaluator {
         return null;
     }
 
-    private Map<String, Location> populateSigsAndLocations(Corpus<Token> corpus, boolean getGoldLocations) {
+    private Map<String, Location> populateSigsAndLocations(Corpus<A> corpus, boolean getGoldLocations) {
         Map<String, Location> locs = new HashMap<String, Location>();
 
-        for(Document<Token> doc : corpus) {
+        for(Document<A> doc : corpus) {
             //System.out.println("Document id: " + doc.getId());
-            for(Sentence<Token> sent : doc) {
+            for(Sentence<A> sent : doc) {
                 StringBuffer sb = new StringBuffer();
                 List<Integer> toponymStarts = new ArrayList<Integer>();
                 List<Location> curLocations = new ArrayList<Location>();
                 List<List<Location> > curCandidates = new ArrayList<List<Location> >();
-                for(Token token : sent) {
+                for(A token : sent) {
                     //System.out.println(token.getForm());
                     if(token.isToponym()) {
                         Toponym toponym = (Toponym) token;
@@ -85,7 +85,7 @@ public class SignatureEvaluator extends Evaluator {
     public DistanceReport getDistanceReport() { return dreport; }
 
     @Override
-    public Report evaluate(Corpus<Token> pred, boolean useSelected) {
+    public Report evaluate(Corpus<A> pred, boolean useSelected) {
         
         Report report = new Report();
         dreport = new DistanceReport();

@@ -7,9 +7,9 @@ package opennlp.fieldspring.tr.eval;
 
 import opennlp.fieldspring.tr.text.*;
 
-public class AccuracyEvaluator extends Evaluator {
+public class AccuracyEvaluator<A extends Token> extends Evaluator<A> {
 
-    public AccuracyEvaluator(Corpus corpus) {
+    public AccuracyEvaluator(Corpus<A> corpus) {
         super(corpus);
     }
 
@@ -18,8 +18,8 @@ public class AccuracyEvaluator extends Evaluator {
 
         Report report = new Report();
 
-        for(Document<Token> doc : corpus) {
-            for(Sentence<Token> sent : doc) {
+        for(Document<A> doc : corpus) {
+            for(Sentence<A> sent : doc) {
                 for(Toponym toponym : sent.getToponyms()) {
                     if(toponym.hasGold()) {
                         if(toponym.getGoldIdx() == toponym.getSelectedIdx()) {
@@ -37,7 +37,7 @@ public class AccuracyEvaluator extends Evaluator {
     }
 
     @Override
-    public Report evaluate(Corpus<Token> pred, boolean useSelected) {
+    public Report evaluate(Corpus<A> pred, boolean useSelected) {
         return null;
     }
 }

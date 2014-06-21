@@ -18,13 +18,13 @@ package opennlp.fieldspring.tr.eval;
 import opennlp.fieldspring.tr.text.Corpus;
 import opennlp.fieldspring.tr.text.Token;
 
-public abstract class Evaluator {
-  protected final Corpus<Token> corpus;
+public abstract class Evaluator<A extends Token> {
+  protected final Corpus<A> corpus;
 
   /* The given corpus should include either gold or selected candidates or
    * both. */
-  public Evaluator(Corpus<? extends Token> corpus) {
-    this.corpus = (Corpus<Token>) corpus;
+  public Evaluator(Corpus<A> corpus) {
+    this.corpus = corpus;
   }
 
   /* Evaluate the "selected" candidates in the corpus using its "gold"
@@ -33,10 +33,10 @@ public abstract class Evaluator {
 
   /* Evaluate the given corpus using either the gold or selected candidates in
    * the current corpus. */
-  public abstract Report evaluate(Corpus<Token> pred, boolean useSelected);
+  public abstract Report evaluate(Corpus<A> pred, boolean useSelected);
 
   /* A convenience method providing a default for evaluate. */
-  public Report evaluate(Corpus<Token> pred) {
+  public Report evaluate(Corpus<A> pred) {
     return this.evaluate(pred, false);
   }
 }

@@ -118,7 +118,7 @@ public class ImportCorpus extends BaseApp {
         return corpus;
     }
 
-    public void serialize(Corpus corpus, String serializedCorpusPath) throws Exception {
+    public void serialize(Corpus<? extends Token> corpus, String serializedCorpusPath) throws Exception {
 
         System.out.print("\nSerializing corpus to " + serializedCorpusPath + " ...");
         
@@ -137,7 +137,7 @@ public class ImportCorpus extends BaseApp {
         System.out.println("done.");
     }
 
-    public void writeToXML(Corpus corpus, String xmlOutputPath) throws Exception {
+    public void writeToXML(Corpus<? extends Token> corpus, String xmlOutputPath) throws Exception {
         System.out.print("\nWriting corpus in XML format to " + xmlOutputPath + " ...");
         CorpusXMLWriter w = new CorpusXMLWriter(corpus);
         w.write(new File(xmlOutputPath));

@@ -63,11 +63,11 @@ public class EvaluateCorpus extends BaseApp {
         currentRun.doEval(systemCorpus, goldCorpus, currentRun.getCorpusFormat(), currentRun.getUseGoldToponyms(), currentRun.getDoOracleEval());
     }
 
-    public void doEval(Corpus systemCorpus, Corpus goldCorpus, Enum<BaseApp.CORPUS_FORMAT> corpusFormat, boolean useGoldToponyms) throws Exception {
+    public void doEval(StoredCorpus systemCorpus, StoredCorpus goldCorpus, Enum<BaseApp.CORPUS_FORMAT> corpusFormat, boolean useGoldToponyms) throws Exception {
         this.doEval(systemCorpus, goldCorpus, corpusFormat, useGoldToponyms, false);
     }
 
-    public void doEval(Corpus systemCorpus, Corpus goldCorpus, Enum<BaseApp.CORPUS_FORMAT> corpusFormat, boolean useGoldToponyms, boolean doOracleEval) throws Exception {
+    public void doEval(StoredCorpus systemCorpus, StoredCorpus goldCorpus, Enum<BaseApp.CORPUS_FORMAT> corpusFormat, boolean useGoldToponyms, boolean doOracleEval) throws Exception {
         System.out.print("\nEvaluating...");
         if(corpusFormat == CORPUS_FORMAT.GEOTEXT) {
             DocDistanceEvaluator evaluator = new DocDistanceEvaluator(systemCorpus);
@@ -82,7 +82,7 @@ public class EvaluateCorpus extends BaseApp {
         }
 
         else {
-            SignatureEvaluator evaluator = new SignatureEvaluator(goldCorpus, doOracleEval);
+            SignatureEvaluator<StoredToken> evaluator = new SignatureEvaluator<StoredToken>(goldCorpus, doOracleEval);
             Report report = evaluator.evaluate(systemCorpus, false);
             DistanceReport dreport = evaluator.getDistanceReport();
 

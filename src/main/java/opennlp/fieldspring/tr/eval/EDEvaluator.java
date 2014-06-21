@@ -22,8 +22,8 @@ import opennlp.fieldspring.tr.text.Corpus;
 import opennlp.fieldspring.tr.text.Sentence;
 import opennlp.fieldspring.tr.text.Token;
 
-public class EDEvaluator extends Evaluator {
-  public EDEvaluator(Corpus<Token> corpus) {
+public class EDEvaluator<A extends Token> extends Evaluator<A> {
+  public EDEvaluator(Corpus<A> corpus) {
     super(corpus);
   }
 
@@ -31,13 +31,13 @@ public class EDEvaluator extends Evaluator {
     return null;
   }
 
-  public Report evaluate(Corpus<Token> pred, boolean useSelected) {
-    Iterator<Document<Token>> goldDocs = this.corpus.iterator();
-    Iterator<Document<Token>> predDocs = pred.iterator();
+  public Report evaluate(Corpus<A> pred, boolean useSelected) {
+    Iterator<Document<A>> goldDocs = this.corpus.iterator();
+    Iterator<Document<A>> predDocs = pred.iterator();
 
     while (goldDocs.hasNext() && predDocs.hasNext()) {
-      Iterator<Sentence<Token>> goldSents = goldDocs.next().iterator();
-      Iterator<Sentence<Token>> predSents = predDocs.next().iterator();
+      Iterator<Sentence<A>> goldSents = goldDocs.next().iterator();
+      Iterator<Sentence<A>> predSents = predDocs.next().iterator();
 
       while (goldSents.hasNext() && predSents.hasNext()) {
       }
