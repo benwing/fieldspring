@@ -6,7 +6,6 @@ import java.util.zip._
 
 import util.io.localfh
 import util.metering._
-import util.os._
 import tr.util._
 import tr.topo._
 import tr.topo.gaz._
@@ -20,7 +19,6 @@ import org.clapper.argot._
 import ArgotConverters._
 
 object FilterGeotaggedWiki extends App {
-  initialize_osutil()
   val parser = new ArgotParser("fieldspring run opennlp.fieldspring.tr.app.FilterGeotaggedWiki", preUsage = Some("Fieldspring"))
 
   val wikiTextInputFile = parser.option[String](List("w", "wiki"), "wiki", "wiki text input file")

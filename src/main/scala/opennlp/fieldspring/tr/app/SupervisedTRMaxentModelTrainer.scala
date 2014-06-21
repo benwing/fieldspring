@@ -6,7 +6,6 @@ import java.util.zip._
 
 import util.io.localfh
 import util.metering._
-import util.os._
 import tr.util._
 import tr.topo._
 import tr.topo.gaz._
@@ -24,7 +23,6 @@ import opennlp.maxent.io._
 import opennlp.model._
 
 object SupervisedTRFeatureExtractor extends App {
-  initialize_osutil()
   val parser = new ArgotParser("fieldspring run opennlp.fieldspring.tr.app.SupervisedTRMaxentModelTrainer", preUsage = Some("Fieldspring"))
 
   val wikiCorpusInputFile = parser.option[String](List("c", "corpus"), "corpus", "wiki training corpus input file")
@@ -182,8 +180,6 @@ object SupervisedTRFeatureExtractor extends App {
 }
 
 object SupervisedTRMaxentModelTrainer extends App {
-  initialize_osutil()
-
   val iterations = 10
   val cutoff = 2
 
