@@ -2,6 +2,7 @@ package opennlp.fieldspring
 package tr.util
 
 import util.io.localfh
+import util.metering._
 import util.print.errprint
 import tr.topo._
 
@@ -29,7 +30,8 @@ object LogUtil {
     var trueCoord:Coordinate = null
     var predCoord:Coordinate = null
 
-    (for(line <- lines) yield {
+    val task = new Meter("reading", "log file line")
+    (lines.mapMetered(task) { line =>
       if(line.startsWith("#")) {
 
         line match {
