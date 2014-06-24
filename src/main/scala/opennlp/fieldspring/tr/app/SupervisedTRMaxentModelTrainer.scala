@@ -31,13 +31,7 @@ object SupervisedTRFeatureExtractor extends App {
   val gazInputFile = parser.option[String](List("g", "gaz"), "gaz", "serialized gazetteer input file")
   val stoplistInputFile = parser.option[String](List("s", "stoplist"), "stoplist", "stopwords input file")
   val modelsOutputDir = parser.option[String](List("d", "models-dir"), "models-dir", "models output directory")
-  //val thresholdParam = parser.option[Double](List("t", "threshold"), "threshold", "maximum distance threshold")
-
-  val windowSize = 20
-  val dpc = 1.0
-  //val threshold = if(thresholdParam.value != None) thresholdParam.value.get else 1.0
-
-  val distanceTable = new DistanceTable
+  val thresholdParam = parser.option[Double](List("t", "threshold"), "threshold", "maximum distance threshold")
 
   try {
     parser.parse(args)
@@ -45,6 +39,13 @@ object SupervisedTRFeatureExtractor extends App {
   catch {
     case e: ArgotUsageException => println(e.message); sys.exit(0)
   }
+
+  val windowSize = 20
+  val dpc = 1.0
+
+  val distanceTable = new DistanceTable
+
+  val threshold = if(thresholdParam.value != None) thresholdParam.value.get else 10.0
 
   println("Reading toponyms from TR-CoNLL at " + trInputFile.value.get + " ...")
   val toponyms:Set[String] = CorpusInfo.getCorpusInfo(trInputFile.value.get).map(_._1).toSet
@@ -58,7 +59,7 @@ object SupervisedTRFeatureExtractor extends App {
     val coordTokens = tokens(2).split(",")
     idsToCoords.put(tokens(0), Coordinate.fromDegrees(coordTokens(0).toDouble, coordTokens(1).toDouble))
   }
- 
+
   println("Reading serialized gazetteer from " + gazInputFile.value.get + " ...")
   val gis = new GZIPInputStream(new FileInputStream(gazInputFile.value.get))
   val ois = new ObjectInputStream(gis)
@@ -71,7 +72,7 @@ object SupervisedTRFeatureExtractor extends App {
   val tokenizer = new OpenNLPTokenizer
 
   val wikiTextCorpus = Corpus.createStreamCorpus
-  
+
   val reader = localfh.open_buffered_reader(wikiTextInputFile.value.get)
   wikiTextCorpus.addSource(new ToponymAnnotator(new WikiTextSource(reader), recognizer, gnGaz))
   wikiTextCorpus.setFormat(BaseApp.CORPUS_FORMAT.WIKITEXT)
@@ -92,35 +93,36 @@ object SupervisedTRFeatureExtractor extends App {
   (new Meter("processing", "document")).foreach(wikiTextCorpus) { doc =>
     if(idsToCoords.containsKey(doc.getId)) {
       val docCoord = idsToCoords(doc.getId)
-      println(doc.getId+" has a geotag: "+docCoord)
+      println(s"${doc.title} (${doc.getId}) has a geotag: $docCoord")
       val docAsArray = TextUtil.getDocAsArray(doc)
       var tokIndex = 0
-      for(token <- docAsArray) {
-        if(token.isToponym && token.asInstanceOf[Toponym].getAmbiguity > 0) {
-          if(toponyms(token.getForm))
-            println(token.getForm+" is a toponym we care about.")
-          else
-            println(token.getForm+" is a toponym, but we don't care about it.")
-        }
-        if(token.isToponym && token.asInstanceOf[Toponym].getAmbiguity > 0 && toponyms(token.getForm)) {
+      for (token <- docAsArray) {
+        if (token.isToponym) {
           val toponym = token.asInstanceOf[Toponym]
-          //val bestCellNum = getBestCellNum(toponym, docCoord, dpc)
-          val bestCandIndex = getBestCandIndex(toponym, docCoord)
-          if(bestCandIndex != -1) {
-            val contextFeatures = TextUtil.getContextFeatures(docAsArray, tokIndex, windowSize, stoplist)
-            val prevSet = toponymsToTrainingSets.getOrElse(token.getForm, Nil)
-            print(toponym+": ")
-            contextFeatures.foreach(f => print(f+","))
-            println(bestCandIndex)
-            
-            toponymsToTrainingSets.put(token.getForm, (contextFeatures, bestCandIndex.toString) :: prevSet)
+          if (toponym.getAmbiguity > 0) {
+            if(toponyms(token.getForm)) {
+              println(token.getForm+" is a toponym we care about.")
+              //val bestCellNum = getBestCellNum(toponym, docCoord, dpc)
+              val bestCandIndex = getBestCandIndex(toponym, docCoord)
+              if(bestCandIndex != -1) {
+                val contextFeatures = TextUtil.getContextFeatures(docAsArray, tokIndex, windowSize, stoplist)
+                val prevSet = toponymsToTrainingSets.getOrElse(token.getForm, Nil)
+                print(toponym+": ")
+                contextFeatures.foreach(f => print(f+","))
+                println(bestCandIndex)
+
+                toponymsToTrainingSets.put(token.getForm, (contextFeatures, bestCandIndex.toString) :: prevSet)
+              }
+            } else {
+              println(token.getForm+" is a toponym, but we don't care about it.")
+            }
           }
         }
         tokIndex += 1
       }
     }
     else {
-      println(doc.getId+" does not have a geotag.")
+      println(s"${doc.title} (${doc.getId}) does not have a geotag.")
       for(sent <- doc) { for(token <- sent) {} }
     }
   }
@@ -159,7 +161,7 @@ object SupervisedTRFeatureExtractor extends App {
     val docRegion = new PointRegion(docCoord)
     for(loc <- toponym.getCandidates) {
       val dist = loc.getRegion.distanceInKm(docRegion)
-      if(dist < loc.getThreshold && dist < minDist) {
+      if(dist < /*loc.getThreshold*/ threshold && dist < minDist) {
         minDist = dist
         bestIndex = index
       }
@@ -176,7 +178,7 @@ object SupervisedTRFeatureExtractor extends App {
     }
     -1
   }*/
-  
+
 }
 
 object SupervisedTRMaxentModelTrainer extends App {
