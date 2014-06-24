@@ -1,6 +1,8 @@
 package opennlp.fieldspring
 package tr.util
 
+import scala.collection.mutable
+
 import util.io.localfh
 import util.metering._
 import util.print.errprint
@@ -14,9 +16,15 @@ object LogUtil {
   val NGRAM_DIST_PREFIX = "unseen mass, "
   val ngramAndCountRE = """^(\S+)\=(\S+)$""".r
 
+  // BE VERY CAREFUL modifying these! They are designed to work with both
+  // the old and new log file formats, except for predictedCellLineRE vs.
+  // oldPredictedCellLineRE. An example of the old log file format is
+  // enwiki-20120211-cwardev-g1dpc-20spd-100-kldiv-pgt.log.bz2, whereas
+  // enwiki-20131104-cwardev-g1dpc-20spd-100-nbayes-dirichlet.log.bz2 is an
+  // example of the new log file format.
   val documentLineRE = """.*Document (.*) at \(?(\S+?),(\S+?)\)?:.*""".r
-  val predictedCellLineRE = """.*  Predicted cell \(at rank ([0-9]+), kl-div (\S+?)\): [A-Za-z]+Cell\(#.*?, (\S+?),(\S+?):.*""".r
-  val oldPredictedCellLineRE = """.*  Predicted cell \(at rank ([0-9]+), kl-div (\S+?)\): GeoCell\(\((\S+?),(\S+?)\).*""".r
+  val predictedCellLineRE = """.*  Predicted cell \(at rank ([0-9]+), kl-div (\S+?)\): [A-Za-z]+Cell\(#.*?, (\S+?),(\S+?):(\S+?),(\S+?),.*""".r
+  val oldPredictedCellLineRE = """.*  Predicted cell \(at rank ([0-9]+), kl-div (\S+?)\): GeoCell\(\((\S+?),(\S+?)\)-\((\S+?),(\S+?)\).*""".r
   val neighborRE = """.*  #([0-9]+) close neighbor: \(?(\S+?),(\S+?)\)?;.*""".r
   val predictedCellCentralPointLineRE = """.* to predicted cell (?:central point|center) at \((\S+?),(\S+?)\).*""".r
   val averageDistanceRE = """.*  Average distance from .*""".r
@@ -25,13 +33,13 @@ object LogUtil {
     val lines = localfh.openr(filename)
 
     var docName:String = null
-    var neighbors:List[(Coordinate, Int)] = null
-    var predCells:List[(Int, Double, Coordinate)] = null
+    val neighbors = mutable.ListBuffer[(Coordinate, Int)]()
+    val predCells = mutable.ListBuffer[(Int, Double, Coordinate, Coordinate)]()
     var trueCoord:Coordinate = null
     var predCoord:Coordinate = null
 
     // (lines.mapMetered(new Meter("reading", "log file line")) { line =>
-    (lines.map { line =>
+    lines.flatMap { line =>
       if(line.startsWith("#")) {
 
         line match {
@@ -40,23 +48,25 @@ object LogUtil {
             if(docName.contains("/"))
               docName = docName.drop(docName.indexOf("/")+1)
             trueCoord = Coordinate.fromDegrees(lat.toDouble, long.toDouble)
-            predCells = List()
-            neighbors = List()
+            neighbors.clear()
+            predCells.clear()
             None
           }
-          case predictedCellLineRE(rank, kl, bllat, bllong) => {
-            val blCoord = Coordinate.fromDegrees(bllat.toDouble, bllong.toDouble)
-            predCells = predCells ::: ((rank.toInt, kl.toDouble, blCoord) :: Nil)
+          case predictedCellLineRE(rank, kl, swlat, swlong, nelat, nelong) => {
+            val swCoord = Coordinate.fromDegrees(swlat.toDouble, swlong.toDouble)
+            val neCoord = Coordinate.fromDegrees(nelat.toDouble, nelong.toDouble)
+            predCells += ((rank.toInt, kl.toDouble, swCoord, neCoord))
             None
           }
-          case oldPredictedCellLineRE(rank, kl, bllat, bllong) => {
-            val blCoord = Coordinate.fromDegrees(bllat.toDouble, bllong.toDouble)
-            predCells = predCells ::: ((rank.toInt, kl.toDouble, blCoord) :: Nil)
+          case oldPredictedCellLineRE(rank, kl, swlat, swlong, nelat, nelong) => {
+            val swCoord = Coordinate.fromDegrees(swlat.toDouble, swlong.toDouble)
+            val neCoord = Coordinate.fromDegrees(nelat.toDouble, nelong.toDouble)
+            predCells += ((rank.toInt, kl.toDouble, swCoord, neCoord))
             None
           }
           case neighborRE(rank, lat, long) => {
             val curNeighbor = Coordinate.fromDegrees(lat.toDouble, long.toDouble)
-            neighbors = neighbors ::: ((curNeighbor, rank.toInt) :: Nil)
+            neighbors += ((curNeighbor, rank.toInt))
             None
           }
           case predictedCellCentralPointLineRE(lat, long) => {
@@ -65,13 +75,11 @@ object LogUtil {
           }
           case averageDistanceRE() => {
             assert(docName != null)
-            assert(neighbors != null)
             assert(neighbors.size > 0)
-            assert(predCells != null)
             assert(predCells.size > 0)
             assert(trueCoord != null)
             assert(predCoord != null)
-            Some(new LogFileParseElement(docName, trueCoord, predCoord, predCells, neighbors))
+            Some(new LogFileParseElement(docName, trueCoord, predCoord, predCells.toList, neighbors.toList))
           }
           case _ => {
             //errprint("Unparsed line: %s", line)
@@ -80,7 +88,7 @@ object LogUtil {
         }
       }
       else None
-    }).flatten.toList
+    }.toList
   }
 
   def getNgramDists(filename: String): Map[Int, Map[String, Double]] = {
@@ -118,16 +126,26 @@ class LogFileParseElement(
   val docName: String,
   val trueCoord: Coordinate,
   val predCoord: Coordinate,
-  val predCells: List[(Int, Double, Coordinate)],
+  val predCells: List[(Int, Double, Coordinate, Coordinate)],
   val neighbors: List[(Coordinate, Int)]) {
 
-    def getProbDistOverPredCells(knn:Int, dpc:Double): List[(Int, Double)] = {
-      var sum = 0.0
-      val myKNN = if(knn < 0) predCells.size else knn
-      (for((rank, kl, blCoord) <- predCells.take(myKNN)) yield {
-        val unnormalized = math.exp(-kl)
-        sum += unnormalized
-        (TopoUtil.getCellNumber(blCoord, dpc), unnormalized)
-      }).map(p => (p._1, p._2/sum)).toList
-    }
+  def getProbDistOverPredCells(knn:Int, dpc: Double): List[(Int, Double)] = {
+    var sum = 0.0
+    val myKNN = if(knn < 0) predCells.size else knn
+    (for ((rank, kl, swCoord, neCoord) <- predCells.take(myKNN)) yield {
+      val unnormalized = math.exp(-kl)
+      sum += unnormalized
+      (TopoUtil.getCellNumber(swCoord, dpc), unnormalized)
+    }).map(p => (p._1, p._2/sum)).toList
+  }
+
+  def getNewProbDistOverPredCells(knn:Int): List[(Coordinate, Coordinate, Double)] = {
+    var sum = 0.0
+    val myKNN = if(knn < 0) predCells.size else knn
+    (for ((rank, kl, swCoord, neCoord) <- predCells.take(myKNN)) yield {
+      val unnormalized = math.exp(-kl)
+      sum += unnormalized
+      (swCoord, neCoord, unnormalized)
+    }).map(p => (p._1, p._2, p._3/sum)).toList
+  }
 }

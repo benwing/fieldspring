@@ -33,12 +33,13 @@ class ProbabilisticResolver(val logFilePath:String,
   val weightsForWMD:ArrayList[ArrayList[Double]] = new ArrayList[ArrayList[Double]](toponymLexicon.size)
   for(i <- 0 until toponymLexicon.size) weightsForWMD.add(null)
 
+  val logElements = LogUtil.parseLogFile(logFilePath)
   val docIdToCellDist:Map[String, Map[Int, Double]] =
-  (for(pe <- LogUtil.parseLogFile(logFilePath)) yield {
-    (pe.docName, pe.getProbDistOverPredCells(KNN, DPC).toMap)
-  }).toMap
+    (for(pe <- logElements) yield {
+      (pe.docName, pe.getProbDistOverPredCells(KNN, DPC).toMap)
+    }).toMap
 
-  val predDocLocations = (for(pe <- LogUtil.parseLogFile(logFilePath)) yield {
+  val predDocLocations = (for(pe <- logElements) yield {
     (pe.docName, pe.predCoord)
   }).toMap
 
