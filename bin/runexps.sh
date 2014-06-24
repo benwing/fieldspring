@@ -10,8 +10,7 @@ FSOPTS=
 TEMPFILE=temp-results.$$.txt
 TEMPWEIGHTSFILE=probToWMD.$$.dat
 PREDICTED=
-
-echo "Using temporary file $TEMPFILE"
+OUTPUTTAG=no
 
 while true ; do
   case "$1" in
@@ -24,6 +23,7 @@ while true ; do
     -cwar-suffix | --cwar-suffix | -cwarsuffix | --cwarsuffix )
       CWARSUFFIX="$2"; shift 2 ;;
     -predicted | --predicted ) PREDICTED="$2"; shift 2 ;;
+    -output-tag | --output-tag ) OUTPUTTAG=yes; shift ;;
     ## Options passed to fieldspring
     -minheap | --minheap ) FSOPTS="$FSOPTS --minheap $2"; shift 2 ;;
     -maxheap | --maxheap ) FSOPTS="$FSOPTS --maxheap $2"; shift 2 ;;
@@ -51,6 +51,16 @@ split=$2; # dev or test
 topidmethod=$3; # gt or ner
 corpusdir=${4%/}/$split/; # fourth argument is path to corpus in XML format
 
+shift 4
+specmethods="$*"
+if [ -z "$specmethods" ]; then
+  specmethods=all
+fi
+methods="$specmethods"
+if [ "$methods" = all ]; then
+  methods="oracle rand population bmd spider tripdl wistr wistr+spider trawl trawl+spider listr wistr+listr-mix wistr+listr-backoff"
+fi
+
 case "$corpusname" in
   cwar* ) corpussuffix="$CWARSUFFIX" ;;
   * ) corpussuffix="" ;;
@@ -65,14 +75,26 @@ elif [ -e "$logfile.gz" ]; then
   logfile="$logfile.gz"
 fi
 
+nohuptag="$WIKITAG-$corpusname$split-$topidmethod-g1dpc$corpussuffix$WIKILOGSUFFIX"
+
 if [ -n "$PREDICTED" ]; then
   modelstag=$WIKITAG-$corpusname$split-g1dpc$corpussuffix$WIKILOGSUFFIX-$PREDICTED-predicted-gt
+  nohuptag="$nohuptag-$PREDICTED-predicted"
 else
   modelstag=$WIKITAG-$corpusname$split-gt
 fi
 modelsdir=wistr-models-$modelstag/
 listrmodelsdir=listr-models-$modelstag/
 wistrlistrmodelsdir=wistrlistr-models-$modelstag/
+methodstag=$(echo $specmethods | sed 's/ /-/g')
+nohuptag="$nohuptag.$methodstag"
+
+if [ "$OUTPUTTAG" = yes ]; then
+  echo $nohuptag
+  exit 0
+fi
+
+echo "Using temporary file $TEMPFILE"
 
 function prettyprint {
     if [ $topidmethod == "ner" ]; then
@@ -132,12 +154,6 @@ dofieldspring()
 {
   execute fieldspring $FSOPTS ${1+"$@"}
 }
-
-shift 4
-methods="$@"
-if [ -z "$1" -o "$1" = all ]; then
-  methods="oracle rand population bmd spider tripdl wistr wistr+spider trawl trawl+spider listr wistr+listr-mix wistr+listr-backoff"
-fi
 
 for method in $methods; do
 

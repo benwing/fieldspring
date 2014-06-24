@@ -1,0 +1,19 @@
+#!/bin/sh
+
+# Run runexps.sh with the given args using 'run-nohup', logging output to
+# a file with a tag describing the args to runexps.sh.
+
+#results=
+#while true; do
+#  case "$1" in
+#    --results ) results=t; shift ;;
+#    -- ) shift; break ;;
+#    * ) break ;;
+#  esac
+#done
+
+set -e
+tag=`runexps.sh --output-tag "$@"`
+# Obtain the full tag with the date in case it has to be truncated to avoid
+dated_tag=`run-nohup -i "$tag" --output-full-id runexps.sh`
+run-nohup --full-id "$dated_tag" runexps.sh "$@"
