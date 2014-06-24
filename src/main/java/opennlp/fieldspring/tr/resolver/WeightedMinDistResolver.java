@@ -19,7 +19,7 @@ public class WeightedMinDistResolver extends Resolver {
     Lexicon<String> toponymLexicon = null;
 
     private int numIterations;
-    private boolean readWeightsFromFile;
+    private String readWeightsFromFile;
     private String logFilePath;
     private List<List<Double> > weightsFromFile = null;
     //private Map<Long, Double> distanceCache = new HashMap<Long, Double>();
@@ -27,19 +27,19 @@ public class WeightedMinDistResolver extends Resolver {
     private DistanceTable distanceTable;
     private static final int PHANTOM_COUNT = 0; // phantom/imagined counts for smoothing
 
-    public WeightedMinDistResolver(int numIterations, boolean readWeightsFromFile, String logFilePath) {
+    public WeightedMinDistResolver(int numIterations, String readWeightsFromFile, String logFilePath) {
         super();
         this.numIterations = numIterations;
         this.readWeightsFromFile = readWeightsFromFile;
         this.logFilePath = logFilePath;
 
-        if(readWeightsFromFile && logFilePath == null) {
+        if(readWeightsFromFile != null && logFilePath == null) {
             System.err.println("Error: need logFilePath via -l for backoff to DocDist.");
             System.exit(0);
         }
     }
 
-    public WeightedMinDistResolver(int numIterations, boolean readWeightsFromFile) {
+    public WeightedMinDistResolver(int numIterations, String readWeightsFromFile) {
         this(numIterations, readWeightsFromFile, null);
     }
 
@@ -54,10 +54,10 @@ public class WeightedMinDistResolver extends Resolver {
         weights = new ArrayList<List<Double> >(toponymLexicon.size());
         for(int i = 0; i < toponymLexicon.size(); i++) weights.add(null);
 
-        if(readWeightsFromFile) {
+        if(readWeightsFromFile != null) {
             weightsFromFile = new ArrayList<List<Double> >(toponymLexicon.size());
             try {
-                DataInputStream in = new DataInputStream(new FileInputStream("probToWMD.dat"));
+                DataInputStream in = new DataInputStream(new FileInputStream(readWeightsFromFile)); // "probToWMD.dat"
                 for(int i = 0; i < toponymLexicon.size(); i++) {
                     int ambiguity = in.readInt();
                     weightsFromFile.add(new ArrayList<Double>(ambiguity));
@@ -98,7 +98,7 @@ public class WeightedMinDistResolver extends Resolver {
         
         StoredCorpus disambiguated = finalDisambiguationStep(corpus, weights, toponymLexicon);
 
-        if(readWeightsFromFile) {
+        if(readWeightsFromFile != null) {
             // Backoff to DocDist:
             Resolver docDistResolver = new DocDistResolver(logFilePath);
             docDistResolver.overwriteSelecteds = false;

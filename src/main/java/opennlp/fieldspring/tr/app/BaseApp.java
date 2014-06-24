@@ -53,7 +53,8 @@ public class BaseApp {
     private String stoplistInputPath = null;
     
     private int numIterations = 1;
-    private boolean readWeightsFromFile = false;
+    private String readWeightsFromFile = null;
+    private String writeWeightsToFile = null;
 
     private int knnForLP = -1;
 
@@ -98,7 +99,8 @@ public class BaseApp {
         options.addOption("ig", "input-graph", true, "path to input graph for label propagation resolvers");
         options.addOption("r", "resolver", true, "resolver (RandomResolver, BasicMinDistResolver, WeightedMinDistResolver, LabelPropDefaultRuleResolver, LabelPropContextSensitiveResolver, LabelPropComplexResolver) [default = BasicMinDistResolver]");
         options.addOption("it", "iterations", true, "number of iterations for iterative models [default = 1]");
-        options.addOption("rwf", "read-weights-file", false, "read initial weights from probToWMD.dat");
+        options.addOption("rwf", "read-weights-file", true, "read initial weights from specified file");
+        options.addOption("wwf", "write-weights-file", true, "write resolver weights to specified file");
         options.addOption("o", "output", true, "output path");
         options.addOption("ok", "output-kml", true, "kml output path");
         options.addOption("okd", "output-kml-dynamic", true, "dynamic kml output path");
@@ -244,7 +246,7 @@ public class BaseApp {
                             resolverType = RESOLVER_TYPE.BASIC_MIN_DIST;
                     }
                     else if(option.getOpt().equals("rwf")) {
-                        readWeightsFromFile = true;
+                        readWeightsFromFile = value;
                     }
                     break; 
                 case 'g':
@@ -321,6 +323,12 @@ public class BaseApp {
                         meProbOnly = true;
                     else
                         dgProbOnly = true;
+                    break;
+                case 'w':
+                    if (option.getOpt().equals("wwf")) {
+                        writeWeightsToFile = value;
+                    }
+                    break;
             }
         }
 
@@ -368,8 +376,12 @@ public class BaseApp {
         return numIterations;
     }
 
-    public boolean getReadWeightsFromFile() {
+    public String getReadWeightsFromFile() {
         return readWeightsFromFile;
+    }
+
+    public String getWriteWeightsToFile() {
+        return writeWeightsToFile;
     }
 
     public String getOutputPath() {

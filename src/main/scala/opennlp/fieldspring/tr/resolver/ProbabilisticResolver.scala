@@ -16,6 +16,7 @@ import scala.collection.JavaConversions._
 
 class ProbabilisticResolver(val logFilePath:String,
                             val modelDirPath:String,
+                            val weightDataPath:String,
                             val popComponentCoefficient:Double,
                             val dgProbOnly:Boolean,
                             val meProbOnly:Boolean) extends Resolver {
@@ -220,23 +221,25 @@ class ProbabilisticResolver(val logFilePath:String,
     }
   }
 
-  val out = new DataOutputStream(new FileOutputStream("probToWMD.dat"))
-  for(weights <- weightsForWMD/*.filterNot(x => x == null)*/) {
-    if(weights == null)
-      out.writeInt(0)
-    else {
-      val sum = weights.sum
-      out.writeInt(weights.size)
-      for(i <- 0 until weights.size) {
-        val newWeight = if(sum > 0) (weights.get(i) / sum) * weights.size else 1.0
-        weights.set(i, newWeight)
-        out.writeDouble(newWeight)
-        //println(newWeight)
+  if (weightDataPath != null) {
+    val out = new DataOutputStream(new FileOutputStream(weightDataPath)) // "probToWMD.dat"
+    for(weights <- weightsForWMD/*.filterNot(x => x == null)*/) {
+      if(weights == null)
+        out.writeInt(0)
+      else {
+        val sum = weights.sum
+        out.writeInt(weights.size)
+        for(i <- 0 until weights.size) {
+          val newWeight = if(sum > 0) (weights.get(i) / sum) * weights.size else 1.0
+          weights.set(i, newWeight)
+          out.writeDouble(newWeight)
+          //println(newWeight)
+        }
+        //println
       }
-      //println
     }
+    out.close
   }
-  out.close
 
   // Backoff to DocDist:
   val docDistResolver = new DocDistResolver(logFilePath)

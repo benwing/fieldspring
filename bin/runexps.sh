@@ -8,6 +8,7 @@ WIKILOGSUFFIX=nbayes-dirichlet
 CWARSUFFIX=20spd
 FSOPTS=
 TEMPFILE=temp-results.$$.txt
+TEMPWEIGHTSFILE=probToWMD.$$.dat
 PREDICTED=
 
 echo "Using temporary file $TEMPFILE"
@@ -231,15 +232,10 @@ printres "\wistr"
 ;;
 
 wistr+spider )
-# FIXME!!!!!!! YUCK!!!!! These two steps communicate with each other using a
-# file called "probToWMD.dat". This is also used to communicate between
-# TRAWL and TRAWL+SPIDER. At least this should be specified as a command-line
-# argument to make this connection explicit and to allow the file name to
-# be varied according to the process ID to avoid clashes with runexps.sh is
-# run multiply at once.
-dofieldspring resolve -i $corpusdir -sci $sercorpusfile -cf tr -im $modelsdir -l $logfile -r prob -pme
+# These two steps communicate with each other using $TEMPWEIGHTSFILE.
+dofieldspring resolve -i $corpusdir -sci $sercorpusfile -cf tr -im $modelsdir -l $logfile -r prob -pme -wwf $TEMPWEIGHTSFILE
 echo "\wistr+\spider" >> $TEMPFILE
-dofieldspring resolve -i $corpusdir -sci $sercorpusfile -cf tr -im $modelsdir -l $logfile -r wmd -it 10 -rwf
+dofieldspring resolve -i $corpusdir -sci $sercorpusfile -cf tr -im $modelsdir -l $logfile -r wmd -it 10 -rwf $TEMPWEIGHTSFILE
 r1=`getr1 "wistr+"`
 r2=`getr2 "wistr+"`
 r3=`getr3 "wistr+"`
@@ -249,16 +245,16 @@ prettyprint "\wistr+\spider" $r1 $r2 $r3 $r4
 
 trawl )
 echo "\trawl" >> $TEMPFILE
-dofieldspring resolve -i $corpusdir -sci $sercorpusfile -cf tr -im $modelsdir -l $logfile -r prob
+dofieldspring resolve -i $corpusdir -sci $sercorpusfile -cf tr -im $modelsdir -l $logfile -r prob -wwf $TEMPWEIGHTSFILE
 printres "\trawl"
 ;;
 
 trawl+spider )
 # WARNING! You need to run 'trawl' directly before this so that the file
-# 'probToWMD.dat', used to communicate TRAWL results to SPIDER, is properly
+# $TEMPWEIGHTSFILE, used to communicate TRAWL results to SPIDER, is properly
 # initialized. See above.
 echo "\trawl+\spider" >> $TEMPFILE
-dofieldspring resolve -i $corpusdir -sci $sercorpusfile -cf tr -im $modelsdir -l $logfile -r wmd -it 10 -rwf
+dofieldspring resolve -i $corpusdir -sci $sercorpusfile -cf tr -im $modelsdir -l $logfile -r wmd -it 10 -rwf $TEMPWEIGHTSFILE
 r1=`getr1 "\trawl+"`
 r2=`getr2 "\trawl+"`
 r3=`getr3 "\trawl+"`
