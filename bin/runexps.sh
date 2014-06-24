@@ -8,6 +8,7 @@ WIKILOGSUFFIX=nbayes-dirichlet
 CWARSUFFIX=20spd
 FSOPTS=
 TEMPFILE=temp-results.$$.txt
+PREDICTED=
 
 echo "Using temporary file $TEMPFILE"
 
@@ -21,6 +22,7 @@ while true ; do
       WIKILOGSUFFIX="$2"; shift 2 ;;
     -cwar-suffix | --cwar-suffix | -cwarsuffix | --cwarsuffix )
       CWARSUFFIX="$2"; shift 2 ;;
+    -predicted | --predicted ) PREDICTED="$2"; shift 2 ;;
     ## Options passed to fieldspring
     -minheap | --minheap ) FSOPTS="$FSOPTS --minheap $2"; shift 2 ;;
     -maxheap | --maxheap ) FSOPTS="$FSOPTS --maxheap $2"; shift 2 ;;
@@ -46,30 +48,30 @@ fi
 corpusname=$1; # e.g. trf or cwar
 split=$2; # dev or test
 topidmethod=$3; # gt or ner
-modelsdir=wistr-models-$WIKITAG-$corpusname$split-gt/;
-listrmodelsdir=listr-models-$WIKITAG-$corpusname$split-gt/;
-wistrlistrmodelsdir=wistrlistr-models-$WIKITAG-$corpusname$split-gt/;
-sercorpusprefix=$corpusname
-case "$corpusname" in
-  cwar* ) sercorpussuffix="$CWARSUFFIX" ;;
-  * ) sercorpussuffix="" ;;
-esac
-
-sercorpusfile=$sercorpusprefix$split-$topidmethod-g1dpc$sercorpussuffix.ser.gz;
 corpusdir=${4%/}/$split/; # fourth argument is path to corpus in XML format
-logfileprefix=$corpusname
+
 case "$corpusname" in
-  cwar* ) logfilesuffix="$CWARSUFFIX" ;;
-  * ) logfilesuffix="" ;;
+  cwar* ) corpussuffix="$CWARSUFFIX" ;;
+  * ) corpussuffix="" ;;
 esac
 
-logfile=$WIKITAG-$logfileprefix$split-g1dpc$logfilesuffix-100$WIKILOGSUFFIX.log
+sercorpusfile=$corpusname$split-$topidmethod-g1dpc$corpussuffix.ser.gz;
+logfile=$WIKITAG-$corpusname$split-g1dpc$corpussuffix-100$WIKILOGSUFFIX.log
 
 if [ -e "$logfile.bz2" ]; then
   logfile="$logfile.bz2"
 elif [ -e "$logfile.gz" ]; then
   logfile="$logfile.gz"
 fi
+
+if [ -n "$PREDICTED" ]; then
+  modelstag=$WIKITAG-$corpusname$split-g1dpc$corpussuffix$WIKILOGSUFFIX-$PREDICTED-predicted-gt
+else
+  modelstag=$WIKITAG-$corpusname$split-gt
+fi
+modelsdir=wistr-models-$modelstag/
+listrmodelsdir=listr-models-$modelstag/
+wistrlistrmodelsdir=wistrlistr-models-$modelstag/
 
 function prettyprint {
     if [ $topidmethod == "ner" ]; then
@@ -133,7 +135,7 @@ dofieldspring()
 shift 4
 methods="$@"
 if [ -z "$1" -o "$1" = all ]; then
-  methods="oracle rand population bmd spider tripdl wistr prob-prelim wistr+spider trawl trawl+spider listr wistr+listr-mix wistr+listr-backoff"
+  methods="oracle rand population bmd spider tripdl wistr wistr+spider trawl trawl+spider listr wistr+listr-mix wistr+listr-backoff"
 fi
 
 for method in $methods; do
@@ -228,12 +230,14 @@ dofieldspring resolve -i $corpusdir -sci $sercorpusfile -cf tr -im $modelsdir -l
 printres "\wistr"
 ;;
 
-prob-prelim )
-echo "Necessary for next step:" >> $TEMPFILE
-dofieldspring resolve -i $corpusdir -sci $sercorpusfile -cf tr -im $modelsdir -l $logfile -r prob -pme
-;;
-
 wistr+spider )
+# FIXME!!!!!!! YUCK!!!!! These two steps communicate with each other using a
+# file called "probToWMD.dat". This is also used to communicate between
+# TRAWL and TRAWL+SPIDER. At least this should be specified as a command-line
+# argument to make this connection explicit and to allow the file name to
+# be varied according to the process ID to avoid clashes with runexps.sh is
+# run multiply at once.
+dofieldspring resolve -i $corpusdir -sci $sercorpusfile -cf tr -im $modelsdir -l $logfile -r prob -pme
 echo "\wistr+\spider" >> $TEMPFILE
 dofieldspring resolve -i $corpusdir -sci $sercorpusfile -cf tr -im $modelsdir -l $logfile -r wmd -it 10 -rwf
 r1=`getr1 "wistr+"`
@@ -250,6 +254,9 @@ printres "\trawl"
 ;;
 
 trawl+spider )
+# WARNING! You need to run 'trawl' directly before this so that the file
+# 'probToWMD.dat', used to communicate TRAWL results to SPIDER, is properly
+# initialized. See above.
 echo "\trawl+\spider" >> $TEMPFILE
 dofieldspring resolve -i $corpusdir -sci $sercorpusfile -cf tr -im $modelsdir -l $logfile -r wmd -it 10 -rwf
 r1=`getr1 "\trawl+"`
