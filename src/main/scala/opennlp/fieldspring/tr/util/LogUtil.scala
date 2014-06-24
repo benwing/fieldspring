@@ -30,8 +30,8 @@ object LogUtil {
     var trueCoord:Coordinate = null
     var predCoord:Coordinate = null
 
-    val task = new Meter("reading", "log file line")
-    (lines.mapMetered(task) { line =>
+    // (lines.mapMetered(new Meter("reading", "log file line")) { line =>
+    (lines.map { line =>
       if(line.startsWith("#")) {
 
         line match {
