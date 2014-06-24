@@ -262,7 +262,7 @@ class LabelPropResolver(
     val result =
     if(logFilePath != null) {
       (for(pe <- LogUtil.parseLogFile(logFilePath)) yield {
-        (for((cellNum, probMass) <- pe.getProbDistOverPredCells(knn, DPC)) yield {
+        (for((cellNum, probMass) <- pe.getUniformGridProbDistOverPredCells(knn, DPC)) yield {
           new Label(DOC+pe.docName, CELL_LABEL+cellNum, probMass)
         })
       }).flatten.toList

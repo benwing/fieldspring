@@ -127,9 +127,13 @@ class LogFileParseElement(
   val trueCoord: Coordinate,
   val predCoord: Coordinate,
   val predCells: List[(Int, Double, Coordinate, Coordinate)],
-  val neighbors: List[(Coordinate, Int)]) {
+  val neighbors: List[(Coordinate, Int)]
+) {
 
-  def getProbDistOverPredCells(knn:Int, dpc: Double): List[(Int, Double)] = {
+  /* FIXME!! Don't use this because it assumes a uniform grid and won't
+   * work with a K-d grid. Use getProbDistOverPredCells() and rewrite
+   * code to remove uniform-grid assumption. */
+  def getUniformGridProbDistOverPredCells(knn:Int, dpc: Double): List[(Int, Double)] = {
     var sum = 0.0
     val myKNN = if(knn < 0) predCells.size else knn
     (for ((rank, kl, swCoord, neCoord) <- predCells.take(myKNN)) yield {
@@ -139,13 +143,13 @@ class LogFileParseElement(
     }).map(p => (p._1, p._2/sum)).toList
   }
 
-  def getNewProbDistOverPredCells(knn:Int): List[(Coordinate, Coordinate, Double)] = {
+  def getProbDistOverPredCells(knn:Int): List[(RectRegion, Double)] = {
     var sum = 0.0
     val myKNN = if(knn < 0) predCells.size else knn
     (for ((rank, kl, swCoord, neCoord) <- predCells.take(myKNN)) yield {
       val unnormalized = math.exp(-kl)
       sum += unnormalized
-      (swCoord, neCoord, unnormalized)
-    }).map(p => (p._1, p._2, p._3/sum)).toList
+      (RectRegion.fromCoordinates(swCoord, neCoord), unnormalized)
+    }).map(p => (p._1, p._2/sum)).toList
   }
 }

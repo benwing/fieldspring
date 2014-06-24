@@ -14,15 +14,16 @@ import opennlp.model._
 
 import scala.collection.JavaConversions._
 
-class ProbabilisticResolver(val logFilePath:String,
-                            val modelDirPath:String,
-                            val weightDataPath:String,
-                            val popComponentCoefficient:Double,
-                            val dgProbOnly:Boolean,
-                            val meProbOnly:Boolean) extends Resolver {
+class ProbabilisticResolver(
+  val logFilePath:String,
+  val modelDirPath:String,
+  val weightDataPath:String,
+  val popComponentCoefficient:Double,
+  val dgProbOnly:Boolean,
+  val meProbOnly:Boolean
+) extends Resolver {
 
   val KNN = -1
-  val DPC = 1.0
   val WINDOW_SIZE = 20
 
   val C = 1.0E-4 // used in f(t)/(f(t)+C)
@@ -34,9 +35,9 @@ class ProbabilisticResolver(val logFilePath:String,
   for(i <- 0 until toponymLexicon.size) weightsForWMD.add(null)
 
   val logElements = LogUtil.parseLogFile(logFilePath)
-  val docIdToCellDist:Map[String, Map[Int, Double]] =
+  val docIdToCellDist:Map[String, Map[RectRegion, Double]] =
     (for(pe <- logElements) yield {
-      (pe.docName, pe.getProbDistOverPredCells(KNN, DPC).toMap)
+      (pe.docName, pe.getProbDistOverPredCells(KNN).toMap)
     }).toMap
 
   val predDocLocations = (for(pe <- logElements) yield {
@@ -115,7 +116,11 @@ class ProbabilisticResolver(val logFilePath:String,
 
         // P(l|d)
         //val prev = docIdToCellDist.getOrElse(doc.getId, null)
-        val cellDistGivenDocument = filterAndNormalize(docIdToCellDist.getOrElse(doc.getId, null), toponym)
+        val cellDistGivenDocument =
+          if (docIdToCellDist contains doc.getId)
+            filterAndNormalize(docIdToCellDist(doc.getId), toponym)
+          else
+            null
         /*if(prev != null) {
           println("prev size = " + prev.size)
           println(" new size = " + cellDistGivenDocument.size)
@@ -142,7 +147,7 @@ class ProbabilisticResolver(val logFilePath:String,
         //print("\n"+toponym.getForm+" ")
 
         for(cand <- toponym.getCandidates) {
-          val curCellNum = TopoUtil.getCellNumber(cand.getRegion.getCenter, DPC)
+          val candLoc = cand.getRegion.getCenter
 
           //print(" " + curCellNum)
 
@@ -154,10 +159,15 @@ class ProbabilisticResolver(val logFilePath:String,
 
           //print(localContextComponent + " ")
 
+          /* If the document's cell dist exists, find the region containing
+           * the candidate, if any, and fetch its probability. Else 0.0.
+           */
           val documentComponent =
-          if(cellDistGivenDocument != null && cellDistGivenDocument.size > 0)
-            cellDistGivenDocument.getOrElse(curCellNum, 0.0)
-          else
+          if(cellDistGivenDocument != null && cellDistGivenDocument.size > 0) {
+            cellDistGivenDocument.find { case (region, prob) =>
+              region.contains(candLoc)
+            }.map(_._2).getOrElse(0.0)
+          } else
             0.0
 
           /*if(localContextComponent == 0.0) {
@@ -257,9 +267,15 @@ class ProbabilisticResolver(val logFilePath:String,
     frac
   }
 
-  def filterAndNormalize(dist:Map[Int, Double], toponym:Toponym): Map[Int, Double] = {
-    val cells = toponym.getCandidates.map(l => TopoUtil.getCellNumber(l.getRegion.getCenter, DPC)).toSet
-    val filteredDist = dist.filter(c => cells(c._1))
+  /**
+   * Filter a distribution over cells to contain only the cells containing
+   * one of the candidates of the given toponym, and renormalize the
+   * probabilities appropriately.
+   */
+  def filterAndNormalize(dist:Map[RectRegion, Double], toponym:Toponym): Map[RectRegion, Double] = {
+    val locs = toponym.getCandidates.map(l => l.getRegion.getCenter)
+    val filteredDist = dist.filter { case (region, prob) =>
+      locs.exists { l => region.contains(l) } }
     val sum = filteredDist.map(_._2).sum
     filteredDist.map(c => (c._1, c._2 / sum))
   }
