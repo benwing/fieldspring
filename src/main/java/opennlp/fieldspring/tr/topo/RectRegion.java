@@ -22,6 +22,7 @@ public class RectRegion extends Region {
 
   private static final long serialVersionUID = 42L;
 
+  // These are all in radians.
   private final double minLat;
   private final double maxLat;
   private final double minLng;
@@ -54,20 +55,21 @@ public class RectRegion extends Region {
                                   (this.maxLng + this.minLng) / 2.0);
   }
 
-    public void setCenter(Coordinate coord) {
-    }
+  public void setCenter(Coordinate coord) {
+  }
 
-  public boolean contains(double lat, double lng) {
-      if(this.minLng <= this.maxLng) {
-          return lat >= this.minLat &&
-                 lat <= this.maxLat &&
-                 lng >= this.minLng &&
-                 lng <= this.maxLng;
-      }
-      // for boxes around 180/-180 longitude:
-      return (lat >= minLat && lat <= maxLat) &&
-             ((lng >= this.minLat && lng <= 180) ||
-              (lng >= -180 && lng <= this.maxLat));
+  /**
+   * WARNING: `lat` and `lng` are in radians.
+   */
+  public boolean containsRadians(double lat, double lng) {
+    if (!(lat >= this.minLat && lat <= this.maxLat))
+      return false;
+    if (this.minLng <= this.maxLng) {
+      return lng >= this.minLng && lng <= this.maxLng;
+    }
+    // for boxes around 180/-180 longitude:
+    return ((lng >= this.maxLng && lng <= Math.PI) ||
+            (lng >= -Math.PI && lng <= this.minLng));
   }
 
   public double getMinLat() {
@@ -95,15 +97,15 @@ public class RectRegion extends Region {
     return representatives;
   }
 
-    public void setRepresentatives(List<Coordinate> coordinates) {
-        System.err.println("Warning: can't set representatives of RectRegion.");
-    }
+  public void setRepresentatives(List<Coordinate> coordinates) {
+    System.err.println("Warning: can't set representatives of RectRegion.");
+  }
 
-    public String toString() {
-        return "lat: [" + (minLat*180.0/Math.PI) + ", "
-            + (maxLat*180.0/Math.PI) + "] lon: ["
-            + (minLng*180.0/Math.PI) + ", "
-            + (maxLng*180.0/Math.PI) + "]";
-    }
+  public String toString() {
+    return "lat: [" + (minLat*180.0/Math.PI) + ", "
+      + (maxLat*180.0/Math.PI) + "] lon: ["
+      + (minLng*180.0/Math.PI) + ", "
+      + (maxLng*180.0/Math.PI) + "]";
+  }
 }
 

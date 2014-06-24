@@ -32,11 +32,11 @@ public class PointRegion extends Region {
     return this.coordinate;
   }
 
-    public void setCenter(Coordinate coord) {
-        this.coordinate = coord;
-    }
+  public void setCenter(Coordinate coord) {
+    this.coordinate = coord;
+  }
 
-  public boolean contains(double lat, double lng) {
+  public boolean containsRadians(double lat, double lng) {
     return lat == this.coordinate.getLat() && lng == this.coordinate.getLng();
   }
 

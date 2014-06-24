@@ -57,11 +57,11 @@ public class PointSetRegion extends Region {
     return this.center;
   }
 
-    public void setCenter(Coordinate coord) {
-        this.center = coord;
-    }
+  public void setCenter(Coordinate coord) {
+    this.center = coord;
+  }
 
-  public boolean contains(double lat, double lng) {
+  public boolean containsRadians(double lat, double lng) {
     return lat == this.center.getLat() && lng == this.center.getLng();
   }
 
