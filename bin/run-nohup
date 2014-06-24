@@ -1,0 +1,154 @@
+#!/bin/sh
+
+help()
+{
+cat >&2 <<EOF
+Usage:
+  $0 [-i ID | --id ID | -q | --quiet ...] PROGRAM [ARGS ...]
+
+Run an arbitrary program, sending its output to a unique file and using
+'nohup' so that exiting the session while this program is running in the
+background won't cause it to get terminated.
+
+PROGRAM is the name of the program, and ARGS are any arguments to send to it.
+These arguments are passed on to the program unchanged.  They may specify
+command-line options, positional parameters (e.g. files to read from or
+write to), or the like.  
+
+-i ID or --id ID, where ID is a string, can be specified to insert an
+identifying string into the name of the output file used to record output
+from the program.  In general, the output file is constructed from the
+base name of the program (i.e. the name after any directory components
+have been stripped out), the ID if given, and date and time that the
+program started, and any additional number needed to ensure that this
+output file is unique.
+
+Some debugging information is normally output to the screen and also to
+the beginning of the output file capturing output from the program run.
+This info includes the current time of day, the hostname the program
+was run on, the name of the output file, the arguments used to invoke
+the nohup wrapper program (i.e. this program), and the arguments passed
+down to the wrapped program.  All of this output, both to screen and
+output file, can be suppressed using the -q or --quiet option.
+
+EOF
+}
+
+id=
+full_id=
+origargs="$0 $*"
+quiet=no
+output_full_id=no
+
+# Handle command-line args for us.
+while true ; do
+  case "$1" in
+    -i | --id ) id="$2"; shift 2 ;;
+    --full-id ) id="$2"; full_id=yes; shift 2 ;;
+    -q | --quiet ) quiet=yes; shift 1 ;;
+    --output-full-id ) output_full_id=yes; shift 1 ;;
+    * ) break ;;
+  esac
+done
+
+if [ -z "$1" ]; then
+  help; exit 1
+fi
+
+runprog="$1"; shift 1
+shortprog=`basename $runprog`
+outprefix="$shortprog.out"
+if [ -n "$id" ]; then
+  outprefix="$outprefix."
+fi
+
+if [ "$full_id" = yes ]; then
+  tag="$id"
+  outfile="$outprefix$tag"
+else
+  # Truncate length to no more than 233 - $outprefix length so that when
+  # we add the date and possible .1, .2 etc. we still come in at no more
+  # than 255 chars.
+  id=$(perl -e "my \$x = <<'FOO';
+$id
+FOO
+  chomp(\$x);
+  my \$pref = <<'FOO';
+$outprefix
+FOO
+  chomp(\$pref);
+  my \$preflen = length(\$pref);
+  if (length(\$x) > 233 - \$preflen) {
+    print(substr(\$x, 0, 230 - \$preflen) . '...');
+  } else {
+    print(\$x);
+  }
+")
+  if [ "`uname`" = "Darwin" ]; then
+    # Darwin (BSD) is missing all sorts of stuff, naturally, including %P,
+    # which gets you lowercase am or pm. (%p gets you uppercase AM or PM --
+    # real logical, huh?)
+    tag="$id.`date '+%F.%H%M%p'`"
+  else
+    tag="$id.`date '+%F.%H%M%P'`"
+  fi
+  outfile="$outprefix$tag"
+  if [ -e "$outfile" ]; then
+    num=1
+    outfile_base="$outfile"
+    tagbase="$tag"
+    while true ; do
+      tag="$tagbase.$num"
+      outfile="$outfile_base.$num"
+      if [ ! -e "$outfile" ]; then
+        break
+      fi
+      num=`expr $num + 1`
+    done
+  fi
+fi
+
+# Make a file name absolute.
+function make_absolute() {
+  python -c "import os;print os.path.realpath('$1')"
+}
+
+# A version that doesn't use Python.  It doesn't properly canonicalize file names, but
+# does handle file names given as URL's (file:/foo/bar).
+#function make_absolute() {
+#  # Check for file:/foo/bar/...  or http://foo.com/...
+#  case "$1" in
+#    *:/* )
+#      if echo "$1" | grep '^[A-Za-z_][A-Za-z0-9_]*:/' > /dev/null 2>&1; then
+#        echo "$1"; return 0
+#      fi ;;
+#  esac
+#
+#  case "$1" in
+#    /* )
+#    echo "$1"; return 0 ;;
+#    * )
+#    pwd=`pwd`
+#    case "$pwd" in
+#      */ ) echo "$pwd$1"; return 1 ;;
+#      *  ) echo "$pwd/$1"; return 1 ;;
+#    esac
+#    ;;
+#  esac
+#}
+
+if [ "$output_full_id" = yes ]; then
+  echo $tag
+else
+  if [ "$quiet" != "yes" ]; then
+    absout=`make_absolute "$outfile"`
+    (
+    echo "Nohup wrapper running on `hostname` at time `date`"
+    echo "Output file: $absout"
+    echo "Nohup script invoked as: $origargs"
+    echo "Invoking: $runprog" ${1+"$@"}
+    echo "(all above info also sent to output file)"
+    ) | tee "$outfile"
+  fi
+  nohup "$runprog" ${1+"$@"} >> "$outfile" 2>&1
+fi
