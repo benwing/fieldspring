@@ -46,6 +46,10 @@ public class RectRegion extends Region {
                           maxLng * Math.PI / 180.0);
   }
 
+  public static RectRegion fromCoordinates(Coordinate sw, Coordinate ne) {
+    return fromRadians(sw.getLat(), ne.getLat(), sw.getLng(), ne.getLng());
+  }
+
   /**
    * Returns the average of the minimum and maximum values for latitude and
    * longitude. Should be changed to avoid problems around zero degrees.
