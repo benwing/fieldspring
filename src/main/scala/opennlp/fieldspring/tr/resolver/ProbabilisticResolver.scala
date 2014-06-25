@@ -4,6 +4,7 @@ package tr.resolver
 import java.io._
 import java.util.ArrayList
 
+import util.print.errprint
 import tr.text._
 import tr.topo._
 import tr.util._
@@ -169,6 +170,7 @@ class ProbabilisticResolver(
             }.map(_._2).getOrElse(0.0)
           } else
             0.0
+          // errprint(s"Cand: $cand, documentComponent: $documentComponent")
 
           /*if(localContextComponent == 0.0) {
             if(documentComponent == 0.0) {
@@ -275,7 +277,11 @@ class ProbabilisticResolver(
   def filterAndNormalize(dist:Map[RectRegion, Double], toponym:Toponym): Map[RectRegion, Double] = {
     val locs = toponym.getCandidates.map(l => l.getRegion.getCenter)
     val filteredDist = dist.filter { case (region, prob) =>
-      locs.exists { l => region.contains(l) } }
+      locs.exists { l =>
+        // errprint(s"region: $region, l: $l, contains: ${region.contains(l)}")
+        region.contains(l)
+      } }
+    // errprint(s"dist size after filtering: ${filteredDist.size}")
     val sum = filteredDist.map(_._2).sum
     filteredDist.map(c => (c._1, c._2 / sum))
   }
