@@ -22,9 +22,9 @@ object LogUtil {
   // enwiki-20120211-cwardev-g1dpc-20spd-100-kldiv-pgt.log.bz2, whereas
   // enwiki-20131104-cwardev-g1dpc-20spd-100-nbayes-dirichlet.log.bz2 is an
   // example of the new log file format.
-  val documentLineRE = """.*Document (.*) at \(?(\S+?),(\S+?)\)?:.*""".r
-  val predictedCellLineRE = """.*  Predicted cell \(at rank ([0-9]+), kl-div (\S+?)\): [A-Za-z]+Cell\(#.*?, (\S+?),(\S+?):(\S+?),(\S+?),.*""".r
-  val oldPredictedCellLineRE = """.*  Predicted cell \(at rank ([0-9]+), kl-div (\S+?)\): GeoCell\(\((\S+?),(\S+?)\)-\((\S+?),(\S+?)\).*""".r
+  val documentLineRE = """.*Document (.*) at \(?(\S+?),(\S+?)\)?[: ].*""".r
+  val predictedCellLineRE = """.*  Predicted cell \(at rank ([0-9]+), (?:kl-div|neg-score) (\S+?)\): [A-Za-z]+Cell\(#.*?, (\S+?),(\S+?):(\S+?),(\S+?),.*""".r
+  val oldPredictedCellLineRE = """.*  Predicted cell \(at rank ([0-9]+), (?:kl-div|neg-score) (\S+?)\): GeoCell\(\((\S+?),(\S+?)\)-\((\S+?),(\S+?)\).*""".r
   val neighborRE = """.*  #([0-9]+) close neighbor: \(?(\S+?),(\S+?)\)?;.*""".r
   val predictedCellCentralPointLineRE = """.* to predicted cell (?:central point|center) at \((\S+?),(\S+?)\).*""".r
   val averageDistanceRE = """.*  Average distance from .*""".r
