@@ -62,6 +62,7 @@ object ErrorKMLGenerator {
   val usePred = parser.flag[Boolean](List("p", "pred"), "show predicted rather than gold locations")
   val noArc = parser.flag[Boolean](List("n", "noarc"), "don't draw arc between predicted and gold")
   val split = parser.flag[Boolean](List("s", "split"), "create separate kml files for each book")
+  val annotate = parser.flag[Boolean](List("a", "annotate"), "annotate pins with book name when split")
 
   def main(args: Array[String]) {
     try {
@@ -93,7 +94,14 @@ object ErrorKMLGenerator {
       else {
         val splitRe = """^(.*)\.([^.]+)$""".r
         docName match {
-          case splitRe(book, para) => (book, para)
+          case splitRe(book, para) => {
+            val docname1 =
+              if (annotate.value == None) para
+              // Use book + para but eliminate .ie.txt which is on all the
+              // CWAR books
+              else book.replaceAll("""(\.ie)?\.txt$""", "") + "." + para
+            (book, docname1)
+          }
           case _ => ("", docName)
         }
       }
