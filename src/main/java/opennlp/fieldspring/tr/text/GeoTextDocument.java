@@ -17,7 +17,7 @@ public class GeoTextDocument extends Document<Token> {
 	this.goldCoord = Coordinate.fromDegrees(goldLat, goldLon);
         this.sentences = new ArrayList<Sentence<Token>>();
         this.systemCoord = null;
-        this.timestamp = null;
+        // this.timestamp = null;
     }
 
     public GeoTextDocument(String id, String timestamp, double goldLat, double goldLon, Enum<Document.SECTION> section) {
