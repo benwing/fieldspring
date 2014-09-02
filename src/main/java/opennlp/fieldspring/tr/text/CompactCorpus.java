@@ -26,6 +26,16 @@ import opennlp.fieldspring.tr.topo.*;
 import opennlp.fieldspring.tr.util.*;
 import opennlp.fieldspring.tr.app.*;
 
+/**
+ * A corpus which can be iterated through multiple times; implementation of
+ * `StoredCorpus`. This works by wrapping a StreamCorpus, which is read
+ * and stored when load() is executed. The form in a token or toponym
+ * (word for token, string of words for toponym) is converted to an integer
+ * using a CountingLexicon, which tracks how many times each forms is seen.
+ * There are separate lexicons for the forms and original forms, where the
+ * difference is typically that the form is the lowercase equivalent of the
+ * original form.
+ */
 public class CompactCorpus extends StoredCorpus implements Serializable {
 
   private static final long serialVersionUID = 42L;

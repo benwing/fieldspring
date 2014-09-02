@@ -21,6 +21,14 @@ import opennlp.fieldspring.tr.util.Lexicon;
 import opennlp.fieldspring.tr.app.*;
 import java.io.*;
 
+/**
+ * A corpus consisting of documents, which in turn consist of sentences,
+ * which in turn consist of tokens, which may be toponyms. There are two
+ * types of corpora: stream corpora, where the documents can be iterated
+ * through only once, and stored corpora, which do not have this restriction.
+ * Stored corpora are implemented using `CompactCorpus`, which wraps
+ * a stream corpus.
+ */
 public abstract class Corpus<A extends Token> implements Iterable<Document<A>>, Serializable {
 
     private static Enum<BaseApp.CORPUS_FORMAT> corpusFormat = null;//BaseApp.CORPUS_FORMAT.PLAIN;
