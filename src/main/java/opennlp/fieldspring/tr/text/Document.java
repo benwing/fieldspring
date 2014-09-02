@@ -19,6 +19,7 @@ import java.io.*;
 import opennlp.fieldspring.tr.topo.*;
 
 public abstract class Document<A extends Token> implements Iterable<Sentence<A>>, Serializable {
+  private static final long serialVersionUID = 5846823707345138199L;
   protected final String id;
   public String title = null;
   protected Coordinate goldCoord;
