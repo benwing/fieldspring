@@ -71,6 +71,14 @@ public abstract class Document<A extends Token> implements Iterable<Sentence<A>>
         return this.goldCoord;
     }
 
+    public void setGoldCoord(Coordinate goldCoord) {
+        this.goldCoord = goldCoord;
+    }
+
+    public void setGoldCoord(double goldLat, double goldLon) {
+        this.goldCoord = Coordinate.fromDegrees(goldLat, goldLon);
+    }
+
     public Coordinate getSystemCoord() {
         return this.systemCoord;
     }
