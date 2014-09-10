@@ -49,6 +49,7 @@ public class SignatureEvaluator<A extends Token> extends Evaluator<A> {
                         Toponym toponym = (Toponym) token;
                         if((getGoldLocations && toponym.hasGold()) ||
                            (!getGoldLocations && (toponym.hasSelected() || toponym.getAmbiguity() == 0))) {
+                            //System.out.println("Saw " + toponym.getForm()+": "+toponym.getGoldIdx()+"/"+toponym.getCandidates().size());
                             toponymStarts.add(sb.length());
                             if(getGoldLocations) {
 				/*if(toponym.getGoldIdx() == 801) {
