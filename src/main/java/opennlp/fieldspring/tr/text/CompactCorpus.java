@@ -170,13 +170,15 @@ public class CompactCorpus extends StoredCorpus implements Serializable {
       }
 
       sentences.trimToSize();
-      if(this.getFormat() == BaseApp.CORPUS_FORMAT.GEOTEXT) {
+      // Do this always because during co-training we may have
+      // document-level labels on a toponym (TRCONLL) corpus.
+      //if(this.getFormat() == BaseApp.CORPUS_FORMAT.GEOTEXT) {
           this.documents.add(new StoredDocument(document.getId(), sentences,
                                                 document.getTimestamp(),
                                                 document.getGoldCoord(), document.getSystemCoord(), document.getSection()));
-      }
-      else
-          this.documents.add(new StoredDocument(document.getId(), sentences));
+      //}
+      //else
+      //    this.documents.add(new StoredDocument(document.getId(), sentences));
     }
 
     this.avgToponymAmbiguity /= this.toponymTokenCount;
