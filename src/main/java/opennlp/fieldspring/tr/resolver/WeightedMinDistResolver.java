@@ -8,11 +8,30 @@ package opennlp.fieldspring.tr.resolver;
 import opennlp.fieldspring.tr.text.*;
 import opennlp.fieldspring.tr.topo.*;
 import opennlp.fieldspring.tr.util.*;
+
+import com.google.common.collect.Iterables;
+
 import java.util.*;
 import java.io.*;
 
 public class WeightedMinDistResolver extends Resolver {
 
+    /**
+     * How/whether to include the document-level gold coordinate into SPIDER.
+     *
+     * <ul>
+     * <li>NO = Don't include.
+     * <li>ADDTOPO = Add an extra toponym with a single candidate set to the
+     *     given coordinate.
+     * <li>WEIGHTED = Initialize the weight of all candidates in relation to
+     *     the distance they are from the gold coordinate.
+     * </ul>
+     */
+    public static enum DOCUMENT_COORD {
+        NO,
+        ADDTOPO,
+        WEIGHTED // Not yet implemented!
+    }
     // weights and toponym lexicon (for indexing into weights) are stored so that a different
     //   corpus/corpora can be used for training than for disambiguating
     private List<List<Double> > weights = null;
@@ -22,16 +41,19 @@ public class WeightedMinDistResolver extends Resolver {
     private String readWeightsFromFile;
     private String logFilePath;
     private List<List<Double> > weightsFromFile = null;
+    private Enum<DOCUMENT_COORD> docTopo;
+
     //private Map<Long, Double> distanceCache = new HashMap<Long, Double>();
     //private int maxCoeff = Integer.MAX_VALUE;
     private DistanceTable distanceTable;
     private static final int PHANTOM_COUNT = 0; // phantom/imagined counts for smoothing
 
-    public WeightedMinDistResolver(int numIterations, String readWeightsFromFile, String logFilePath) {
+    public WeightedMinDistResolver(int numIterations, String readWeightsFromFile, String logFilePath, Enum<DOCUMENT_COORD> docTopo) {
         super();
         this.numIterations = numIterations;
         this.readWeightsFromFile = readWeightsFromFile;
         this.logFilePath = logFilePath;
+        this.docTopo = docTopo;
 
         if(readWeightsFromFile != null && logFilePath == null) {
             System.err.println("Error: need logFilePath via -l for backoff to DocDist.");
@@ -39,8 +61,12 @@ public class WeightedMinDistResolver extends Resolver {
         }
     }
 
+    public WeightedMinDistResolver(int numIterations, String readWeightsFromFile, String logFilePath) {
+        this(numIterations, readWeightsFromFile, logFilePath, DOCUMENT_COORD.NO);
+    }
+
     public WeightedMinDistResolver(int numIterations, String readWeightsFromFile) {
-        this(numIterations, readWeightsFromFile, null);
+        this(numIterations, readWeightsFromFile, null, DOCUMENT_COORD.NO);
     }
 
     @Override
@@ -49,6 +75,7 @@ public class WeightedMinDistResolver extends Resolver {
         distanceTable = new DistanceTable();//corpus.getToponymTypeCount());
 
         toponymLexicon = TopoUtil.buildLexicon(corpus);
+        initializeSyntheticToponyms(toponymLexicon, corpus);
         List<List<Integer> > counts = new ArrayList<List<Integer> >(toponymLexicon.size());
         for(int i = 0; i < toponymLexicon.size(); i++) counts.add(null);
         weights = new ArrayList<List<Double> >(toponymLexicon.size());
@@ -94,6 +121,7 @@ public class WeightedMinDistResolver extends Resolver {
             train(corpus);
 
         TopoUtil.addToponymsToLexicon(toponymLexicon, corpus);
+        initializeSyntheticToponyms(toponymLexicon, corpus);
         weights = expandWeightsArray(toponymLexicon, corpus, weights);
         
         StoredCorpus disambiguated = finalDisambiguationStep(corpus, weights, toponymLexicon);
@@ -131,15 +159,57 @@ public class WeightedMinDistResolver extends Resolver {
         return newWeights;
     }
 
+    private int docIndex = 0;
+    private Map<Document<StoredToken>, Toponym> syntheticToponyms =
+        new HashMap<Document<StoredToken>, Toponym>();
+
+    // Make sure the lexicon holds ID's for the synthetic toponyms we
+    // create, one per document, with a single candidate whose location is
+    // the document's gold coordinate.
+    private void initializeSyntheticToponyms(Lexicon<String> lexicon,
+            StoredCorpus corpus) {
+        if (docTopo != DOCUMENT_COORD.ADDTOPO)
+            return;
+        for (Document<StoredToken> doc : corpus) {
+            Toponym top = syntheticToponyms.get(doc);
+            if (top == null) {
+                String idBase = doc.getId() + "_" + docIndex;
+                docIndex += 1;
+                String topoId = "__TOPO_" + idBase + "__";
+                Coordinate coord = doc.getGoldCoord();
+                Location loc = new Location(topoId, new PointRegion(coord));
+                top = new SimpleToponym(topoId, Arrays.asList(loc));
+                syntheticToponyms.put(doc, top);
+            }
+            lexicon.getOrAdd(top.getForm());
+        }
+    }
+
+    // Return at Iterable over the toponyms in a document, including the
+    // synthetic toponym if necessary.
+    private Iterable<Toponym> iterToponyms(Document<StoredToken> doc) {
+        List<List<Toponym>> toponymLists = new ArrayList<List<Toponym>>();
+        for (Sentence<StoredToken> sent : doc)
+            toponymLists.add(sent.getToponyms());
+        Iterable<Toponym> realToponyms = Iterables.concat(toponymLists);
+        if (docTopo != DOCUMENT_COORD.ADDTOPO)
+            return realToponyms;
+        Toponym top = syntheticToponyms.get(doc);
+        assert top != null;
+        return Iterables.concat(realToponyms, Arrays.asList(top));
+    }
+
     private void initializeCountsAndWeights(List<List<Integer> > counts, List<List<Double> > weights,
                                             StoredCorpus corpus, Lexicon<String> lexicon, int initialCount,
                                             List<List<Double> > weightsFromFile) {
 
         for(Document<StoredToken> doc : corpus) {
-            for(Sentence<StoredToken> sent : doc) {
-                for(Toponym toponym : sent.getToponyms()) {
+                for(Toponym toponym : iterToponyms(doc)) {
                     if(toponym.getAmbiguity() > 0) {
                         int index = lexicon.get(toponym.getForm());
+                        if (index < 0)
+                            System.err.println("Toponym " + toponym + ", form " +
+                                    toponym.getForm() + ", index < 0: " + index);
                         if(counts.get(index) == null) {
                             counts.set(index, new ArrayList<Integer>(toponym.getAmbiguity()));
                             weights.set(index, new ArrayList<Double>(toponym.getAmbiguity()));
@@ -154,14 +224,12 @@ public class WeightedMinDistResolver extends Resolver {
                         }
                     }
                 }
-            }
         }
     }
 
     private void initializeWeights(List<List<Double> > weights, StoredCorpus corpus, Lexicon<String> lexicon) {
         for(Document<StoredToken> doc : corpus) {
-            for(Sentence<StoredToken> sent : doc) {
-                for(Toponym toponym : sent.getToponyms()) {
+                for(Toponym toponym : iterToponyms(doc)) {
                     if(toponym.getAmbiguity() > 0) {
                         int index = lexicon.get(toponym.getForm());
                         if(weights.get(index) == null) {
@@ -172,7 +240,6 @@ public class WeightedMinDistResolver extends Resolver {
                         }
                     }
                 }
-            }       
         }
     }
 
@@ -186,8 +253,7 @@ public class WeightedMinDistResolver extends Resolver {
         for(int i = 0; i < counts.size(); i++) sums.add(initialCount * counts.get(i).size());
 
         for (Document<StoredToken> doc : corpus) {
-            for (Sentence<StoredToken> sent : doc) {
-                for (Toponym toponym : sent.getToponyms()) {
+                for (Toponym toponym : iterToponyms(doc)) {
                     double min = Double.MAX_VALUE;
                     int minIdx = -1;
                     
@@ -228,7 +294,6 @@ public class WeightedMinDistResolver extends Resolver {
                     }
 
                 }
-            }
         }
     
     
@@ -247,8 +312,7 @@ public class WeightedMinDistResolver extends Resolver {
    * totals for candidates when it becomes clear that they aren't minimal. */
   private StoredCorpus finalDisambiguationStep(StoredCorpus corpus, List<List<Double> > weights, Lexicon<String> lexicon) {
     for (Document<StoredToken> doc : corpus) {
-        for (Sentence<StoredToken> sent : doc) {
-            for (Toponym toponym : sent.getToponyms()) {
+            for (Toponym toponym : iterToponyms(doc)) {
                 double min = Double.MAX_VALUE;
                 int minIdx = -1;
                 
@@ -280,8 +344,6 @@ public class WeightedMinDistResolver extends Resolver {
                     toponym.setSelectedIdx(minIdx);
                 }
             }
-        }
-        
     }
     
     return corpus;
@@ -289,15 +351,16 @@ public class WeightedMinDistResolver extends Resolver {
 
   /* Returns the minimum total distance to all other locations in the document
    * for the candidate, or null if it's greater than the current minimum. */
-  private Double checkCandidate(Toponym toponymTemp, Location candidate, int locationIndex, Document<StoredToken> doc,
+  private Double checkCandidate(Toponym toponym, Location candidate, int locationIndex, Document<StoredToken> doc,
           double currentMinTotal, List<List<Double> > weights, Lexicon<String> lexicon) {
-    StoredToponym toponym = (StoredToponym) toponymTemp;
+    // appears to be no reason to cast, and causes problems with synthetic toponyms
+    // StoredToponym toponym = (StoredToponym) toponymTemp;
     Double total = 0.0;
     int seen = 0;
 
-    for (Sentence<StoredToken> otherSent : doc) {
-      for (Toponym otherToponymTemp : otherSent.getToponyms()) {
-        StoredToponym otherToponym = (StoredToponym) otherToponymTemp;
+    for (Toponym otherToponym : iterToponyms(doc)) {
+        // appears to be no reason to cast, and causes problems with synthetic toponyms
+        // StoredToponym otherToponym = (StoredToponym) otherToponymTemp;
 
         /*Map<Location, Double> normalizationDenoms = new HashMap<Location, Double>();
         for(Location tempOtherLoc : otherToponym) {//int i = 0; i < otherToponym.getAmbiguity(); i++) {
@@ -350,7 +413,6 @@ public class WeightedMinDistResolver extends Resolver {
             return null;
           }
         }
-      }
     }
 
     /* Abstain if we haven't seen any other toponyms. */
@@ -410,3 +472,6 @@ public class WeightedMinDistResolver extends Resolver {
         //public
     }*/
 }
+
+// For Vim, so we get 4-space indent
+// vim: set sw=4:
