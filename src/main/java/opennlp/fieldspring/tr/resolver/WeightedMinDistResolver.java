@@ -213,13 +213,30 @@ public class WeightedMinDistResolver extends Resolver {
                         if(counts.get(index) == null) {
                             counts.set(index, new ArrayList<Integer>(toponym.getAmbiguity()));
                             weights.set(index, new ArrayList<Double>(toponym.getAmbiguity()));
-                            for(int i = 0; i < toponym.getAmbiguity(); i++) {
+                            List<Location> candidates = toponym.getCandidates();
+                            for (int i = 0; i < toponym.getAmbiguity(); i++) {
                                 counts.get(index).add(initialCount);
                                 if(weightsFromFile != null
                                    && weightsFromFile.get(index).size() > 0)
                                     weights.get(index).add(weightsFromFile.get(index).get(i));
+                                else if (docTopo == DOCUMENT_COORD.WEIGHTED)
+                                    weights.get(index).add(1.0/candidates.get(i).
+                                            distance(doc.getGoldCoord()));
                                 else
                                     weights.get(index).add(1.0);
+                            }
+                            if (docTopo == DOCUMENT_COORD.WEIGHTED) {
+                                // Normalize the weights so they add up to
+                                // toponym.getAmbiguity().
+                                double sum = 0.0;
+                                List<Double> thisWeights = weights.get(index);
+                                for (double weight : thisWeights)
+                                    sum += weight;
+                                for (int i = 0; i < toponym.getAmbiguity(); i++) {
+                                    double curWeight = thisWeights.get(i);
+                                    thisWeights.set(i,
+                                            curWeight * toponym.getAmbiguity() / sum);
+                                }
                             }
                         }
                     }
