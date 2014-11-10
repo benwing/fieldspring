@@ -124,6 +124,10 @@ public class CorpusXMLWriter {
     private static String okChars = "!?:;,'\"|+=-_*^%$#@`~(){}[]\\/";
 
     public static boolean isSanitary(/*Enum<BaseApp.CORPUS_FORMAT> corpusFormat, */String s) {
+        // FIXME! What is the purpose of this? It causes "unsanitary" tokens
+        // to get converted to spaces, but that seems crazy. This happens e.g.
+        // to all multi-word toponyms. Disable this for the moment. --ben
+        /*
         //if(corpusFormat != BaseApp.CORPUS_FORMAT.GEOTEXT)
         //    return true;
         for(int i = 0; i < s.length(); i++) {
@@ -132,6 +136,7 @@ public class CorpusXMLWriter {
                 return false;
             }
         }
+        */
         return true;
     }
 
