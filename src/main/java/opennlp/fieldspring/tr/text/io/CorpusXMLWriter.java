@@ -82,6 +82,7 @@ public class CorpusXMLWriter {
   }
 
   protected void writeDocument(XMLStreamWriter out, Document<Token> document) throws XMLStreamException {
+    out.writeCharacters("\n");
     out.writeStartElement("doc");
     if (document.getId() != null) {
       out.writeAttribute("id", document.getId());
@@ -107,6 +108,7 @@ public class CorpusXMLWriter {
 
   // BUGGY!!! Won't output multiword toponyms as such!!!
   protected void writeSentence(XMLStreamWriter out, Sentence<Token> sentence) throws XMLStreamException {
+    out.writeCharacters("\n");
     out.writeStartElement("s");
     if (sentence.getId() != null) {
       out.writeAttribute("id", sentence.getId());
@@ -141,6 +143,7 @@ public class CorpusXMLWriter {
     }
 
   protected void writeToken(XMLStreamWriter out, Token token) throws XMLStreamException {
+    out.writeCharacters("\n");
     out.writeStartElement("w");
     if(isSanitary(/*corpus.getFormat(), */token.getOrigForm()))
         out.writeAttribute("tok", token.getOrigForm());
@@ -150,11 +153,13 @@ public class CorpusXMLWriter {
   }
 
   protected void writeToponym(XMLStreamWriter out, Toponym toponym) throws XMLStreamException {
+    out.writeCharacters("\n");
     out.writeStartElement("toponym");
     if(isSanitary(/*corpus.getFormat(), */toponym.getOrigForm()))
        out.writeAttribute("term", toponym.getOrigForm());
     else
        out.writeAttribute("term", " ");
+    out.writeCharacters("\n");
     out.writeStartElement("candidates");
     Location gold = toponym.hasGold() ? toponym.getGold() : null;
     Location selected = toponym.hasSelected() ? toponym.getSelected() : null;
@@ -168,6 +173,7 @@ public class CorpusXMLWriter {
 
   protected void writeLocation(XMLStreamWriter out, Location location, Location gold, Location selected) throws XMLStreamException {
       //location.removeNaNs();
+    out.writeCharacters("\n");
     out.writeStartElement("cand");
     out.writeAttribute("id", String.format("c%d", location.getId()));
     out.writeAttribute("lat", String.format("%f", location.getRegion().getCenter().getLatDegrees()));
@@ -185,8 +191,10 @@ public class CorpusXMLWriter {
       out.writeAttribute("selected", "true");
     }
     
+    out.writeCharacters("\n");
     out.writeStartElement("representatives");
     for(Coordinate coord : location.getRegion().getRepresentatives()) {
+        out.writeCharacters("\n");
         out.writeStartElement("rep");
         out.writeAttribute("lat", String.format("%f", coord.getLatDegrees()));
         out.writeAttribute("long", String.format("%f", coord.getLngDegrees()));
@@ -210,6 +218,7 @@ public class CorpusXMLWriter {
           OutputStream stream = new BufferedOutputStream(new FileOutputStream(docFile));
           XMLStreamWriter out = this.createXMLStreamWriter(stream);
           out.writeStartDocument("UTF-8", "1.0");
+          out.writeCharacters("\n");
           out.writeStartElement("corpus");
           out.writeAttribute("created", this.getCalendar().toString());
           this.writeDocument(out, document);
@@ -253,6 +262,7 @@ public class CorpusXMLWriter {
   protected void write(XMLStreamWriter out) {
     try {
       out.writeStartDocument("UTF-8", "1.0");
+      out.writeCharacters("\n");
       out.writeStartElement("corpus");
       out.writeAttribute("created", this.getCalendar().toString());
       for (Document document : this.corpus) {
