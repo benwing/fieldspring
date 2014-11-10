@@ -381,6 +381,7 @@ public class WeightedMinDistResolver extends Resolver {
                     }
                 }
                 
+                //System.err.println("Toponym: " + toponym.getForm + ", minIdx = " + minIdx);
                 if (minIdx > -1) {
                     toponym.setSelectedIdx(minIdx);
                 }
