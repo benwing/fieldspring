@@ -30,7 +30,7 @@ public class WeightedMinDistResolver extends Resolver {
     public static enum DOCUMENT_COORD {
         NO,
         ADDTOPO,
-        WEIGHTED // Not yet implemented!
+        WEIGHTED
     }
     // weights and toponym lexicon (for indexing into weights) are stored so that a different
     //   corpus/corpora can be used for training than for disambiguating
@@ -75,6 +75,7 @@ public class WeightedMinDistResolver extends Resolver {
         distanceTable = new DistanceTable();//corpus.getToponymTypeCount());
 
         toponymLexicon = TopoUtil.buildLexicon(corpus);
+        int nonSyntheticLexiconSize = toponymLexicon.size();
         initializeSyntheticToponyms(toponymLexicon, corpus);
         List<List<Integer> > counts = new ArrayList<List<Integer> >(toponymLexicon.size());
         for(int i = 0; i < toponymLexicon.size(); i++) counts.add(null);
@@ -82,10 +83,13 @@ public class WeightedMinDistResolver extends Resolver {
         for(int i = 0; i < toponymLexicon.size(); i++) weights.add(null);
 
         if(readWeightsFromFile != null) {
-            weightsFromFile = new ArrayList<List<Double> >(toponymLexicon.size());
+            weightsFromFile =
+                new ArrayList<List<Double> >(nonSyntheticLexiconSize);
             try {
-                DataInputStream in = new DataInputStream(new FileInputStream(readWeightsFromFile)); // "probToWMD.dat"
-                for(int i = 0; i < toponymLexicon.size(); i++) {
+                DataInputStream in = new DataInputStream(
+                        new FileInputStream(
+                            readWeightsFromFile)); // "probToWMD.dat"
+                for(int i = 0; i < nonSyntheticLexiconSize; i++) {
                     int ambiguity = in.readInt();
                     weightsFromFile.add(new ArrayList<Double>(ambiguity));
                     for(int j = 0; j < ambiguity; j++) {
@@ -120,6 +124,12 @@ public class WeightedMinDistResolver extends Resolver {
         if(weights == null)
             train(corpus);
 
+        // We may be called to disambiguate a different corpus from the
+        // corpus we trained with, with different toponms. Add the toponyms
+        // to the lexicon, including initializing synthetic toponyms for
+        // the new documents, then expand the weights array to include
+        // the new toponyms, assigning a weight of 1 to each toponym
+        // without a weight.
         TopoUtil.addToponymsToLexicon(toponymLexicon, corpus);
         initializeSyntheticToponyms(toponymLexicon, corpus);
         weights = expandWeightsArray(toponymLexicon, corpus, weights);
@@ -199,6 +209,14 @@ public class WeightedMinDistResolver extends Resolver {
         return Iterables.concat(realToponyms, Arrays.asList(top));
     }
 
+    // Initialize the counts and weights for toponyms in the corpus, either
+    // with weights read from a file (given in weightsFromFile) or manually.
+    // If manually, weights are either set to 1 or initialized according
+    // to the weighted scheme used by DOCUMENT_COORD.WEIGHTED. weightsFromFile
+    // may have a size less than the total number of toponyms if there are
+    // synthetic toponyms, in which case the remainder will get initialized
+    // manually. Counts are initialized to the value of initialCount
+    // (normally 0).
     private void initializeCountsAndWeights(List<List<Integer> > counts, List<List<Double> > weights,
                                             StoredCorpus corpus, Lexicon<String> lexicon, int initialCount,
                                             List<List<Double> > weightsFromFile) {
@@ -217,6 +235,7 @@ public class WeightedMinDistResolver extends Resolver {
                             for (int i = 0; i < toponym.getAmbiguity(); i++) {
                                 counts.get(index).add(initialCount);
                                 if(weightsFromFile != null
+                                   && index < weightsFromFile.size()
                                    && weightsFromFile.get(index).size() > 0)
                                     weights.get(index).add(weightsFromFile.get(index).get(i));
                                 else if (docTopo == DOCUMENT_COORD.WEIGHTED)
@@ -244,6 +263,11 @@ public class WeightedMinDistResolver extends Resolver {
         }
     }
 
+    // Initialize weights to 1.0 for toponms in CORPUS that have not had
+    // their weights previously initialized. This happens because we may
+    // have trained on a different corpus with different toponyms from
+    // those in the corpus we're disambiguating. In such a case, only
+    // the toponyms of the training corpus will be initialized.
     private void initializeWeights(List<List<Double> > weights, StoredCorpus corpus, Lexicon<String> lexicon) {
         for(Document<StoredToken> doc : corpus) {
                 for(Toponym toponym : iterToponyms(doc)) {
