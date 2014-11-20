@@ -60,25 +60,31 @@ public class EvaluateCorpus extends BaseApp {
             System.out.println("done.");
         }
 
-        currentRun.doEval(systemCorpus, goldCorpus, currentRun.getCorpusFormat(), currentRun.getUseGoldToponyms(), currentRun.getDoOracleEval());
+        currentRun.doEval(systemCorpus, goldCorpus, "",
+            currentRun.getCorpusFormat(), currentRun.getUseGoldToponyms(),
+            currentRun.getDoOracleEval());
     }
 
-    public void doEval(StoredCorpus systemCorpus, StoredCorpus goldCorpus, Enum<BaseApp.CORPUS_FORMAT> corpusFormat, boolean useGoldToponyms) throws Exception {
-        this.doEval(systemCorpus, goldCorpus, corpusFormat, useGoldToponyms, false);
+    public void doEval(StoredCorpus systemCorpus, StoredCorpus goldCorpus,
+            String prefix, Enum<BaseApp.CORPUS_FORMAT> corpusFormat,
+            boolean useGoldToponyms) throws Exception {
+        this.doEval(systemCorpus, goldCorpus, prefix, corpusFormat, useGoldToponyms, false);
     }
 
-    public void doEval(StoredCorpus systemCorpus, StoredCorpus goldCorpus, Enum<BaseApp.CORPUS_FORMAT> corpusFormat, boolean useGoldToponyms, boolean doOracleEval) throws Exception {
+    public void doEval(StoredCorpus systemCorpus, StoredCorpus goldCorpus,
+            String prefix, Enum<BaseApp.CORPUS_FORMAT> corpusFormat,
+            boolean useGoldToponyms, boolean doOracleEval) throws Exception {
         System.out.print("\nEvaluating...");
         if(corpusFormat == CORPUS_FORMAT.GEOTEXT) {
             DocDistanceEvaluator evaluator = new DocDistanceEvaluator(systemCorpus);
             DistanceReport dreport = evaluator.evaluate();
 
-            System.out.println("\nMinimum error distance (km): " + dreport.getMinDistance());
-            System.out.println("Maximum error distance (km): " + dreport.getMaxDistance());
-            System.out.println("\nMean error distance (km): " + dreport.getMeanDistance());
-            System.out.println("Median error distance (km): " + dreport.getMedianDistance());
-            System.out.println("Fraction of distances within 161 km: " + dreport.getFractionDistancesWithinThreshold(161.0));
-            System.out.println("\nTotal documents evaluated: " + dreport.getNumDistances());
+            System.out.println("\n" + prefix + "Minimum error distance (km): " + dreport.getMinDistance());
+            System.out.println(prefix + "Maximum error distance (km): " + dreport.getMaxDistance());
+            System.out.println("\n" + prefix + "Mean error distance (km): " + dreport.getMeanDistance());
+            System.out.println(prefix + "Median error distance (km): " + dreport.getMedianDistance());
+            System.out.println(prefix + "Fraction of distances within 161 km: " + dreport.getFractionDistancesWithinThreshold(161.0));
+            System.out.println("\n" + prefix + "Total documents evaluated: " + dreport.getNumDistances());
         }
 
         else {
@@ -86,17 +92,17 @@ public class EvaluateCorpus extends BaseApp {
             Report report = evaluator.evaluate(systemCorpus, false);
             DistanceReport dreport = evaluator.getDistanceReport();
 
-            System.out.println("\nP: " + report.getPrecision());
-            System.out.println("R: " + report.getRecall());
-            System.out.println("F: " + report.getFScore());
+            System.out.println("\n" + prefix + "P: " + report.getPrecision());
+            System.out.println(prefix + "R: " + report.getRecall());
+            System.out.println(prefix + "F: " + report.getFScore());
             //System.out.println("A: " + report.getAccuracy());
 
-            System.out.println("\nMinimum error distance (km): " + dreport.getMinDistance());
-            System.out.println("Maximum error distance (km): " + dreport.getMaxDistance());
-            System.out.println("\nMean error distance (km): " + dreport.getMeanDistance());
-            System.out.println("Median error distance (km): " + dreport.getMedianDistance());
-            System.out.println("Fraction of distances within 161 km: " + dreport.getFractionDistancesWithinThreshold(161.0));
-            System.out.println("\nTotal toponyms evaluated: " + dreport.getNumDistances());
+            System.out.println("\n" + prefix + "Minimum error distance (km): " + dreport.getMinDistance());
+            System.out.println(prefix + "Maximum error distance (km): " + dreport.getMaxDistance());
+            System.out.println("\n" + prefix + "Mean error distance (km): " + dreport.getMeanDistance());
+            System.out.println(prefix + "Median error distance (km): " + dreport.getMedianDistance());
+            System.out.println(prefix + "Fraction of distances within 161 km: " + dreport.getFractionDistancesWithinThreshold(161.0));
+            System.out.println("\n" + prefix + "Total toponyms evaluated: " + dreport.getNumDistances());
         }
     }
 

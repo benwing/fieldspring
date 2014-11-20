@@ -70,7 +70,7 @@ object GeoTextLabelProp extends BaseApp {
     }
 
     val eval = new EvaluateCorpus
-    eval.doEval(corpus, corpus, CORPUS_FORMAT.GEOTEXT, true)
+    eval.doEval(corpus, corpus, "", CORPUS_FORMAT.GEOTEXT, true)
   }
 
   def getGreatestCell(estimatedLabelScores: TObjectDoubleHashMap[String]): Int = {

@@ -176,7 +176,7 @@ public class RunResolver extends BaseApp {
 
         if(goldCorpus != null || currentRun.getCorpusFormat() == CORPUS_FORMAT.GEOTEXT) {
             EvaluateCorpus evaluateCorpus = new EvaluateCorpus();
-            evaluateCorpus.doEval(disambiguated, goldCorpus, currentRun.getCorpusFormat(), true, currentRun.getDoOracleEval());
+            evaluateCorpus.doEval(disambiguated, goldCorpus, "", currentRun.getCorpusFormat(), true, currentRun.getDoOracleEval());
         }
 
         if(currentRun.getSerializedCorpusOutputPath() != null) {
