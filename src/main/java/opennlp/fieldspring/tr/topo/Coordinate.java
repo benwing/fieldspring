@@ -99,7 +99,7 @@ public class Coordinate implements Serializable {
     }
 
     public String toString() {
-      return String.format("%.02f,%.02f", this.getLatDegrees(), this.getLngDegrees());
+      return String.format("%.05f,%.05f", this.getLatDegrees(), this.getLngDegrees());
     }
 
     public double distance(Coordinate other) {
