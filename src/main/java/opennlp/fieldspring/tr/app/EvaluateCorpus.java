@@ -65,13 +65,13 @@ public class EvaluateCorpus extends BaseApp {
             currentRun.getDoOracleEval());
     }
 
-    public void doEval(StoredCorpus systemCorpus, StoredCorpus goldCorpus,
+    public SignatureEvaluator<StoredToken> doEval(StoredCorpus systemCorpus, StoredCorpus goldCorpus,
             String prefix, Enum<BaseApp.CORPUS_FORMAT> corpusFormat,
             boolean useGoldToponyms) throws Exception {
-        this.doEval(systemCorpus, goldCorpus, prefix, corpusFormat, useGoldToponyms, false);
+        return this.doEval(systemCorpus, goldCorpus, prefix, corpusFormat, useGoldToponyms, false);
     }
 
-    public void doEval(StoredCorpus systemCorpus, StoredCorpus goldCorpus,
+    public SignatureEvaluator<StoredToken> doEval(StoredCorpus systemCorpus, StoredCorpus goldCorpus,
             String prefix, Enum<BaseApp.CORPUS_FORMAT> corpusFormat,
             boolean useGoldToponyms, boolean doOracleEval) throws Exception {
         System.out.print("\nEvaluating...");
@@ -85,6 +85,7 @@ public class EvaluateCorpus extends BaseApp {
             System.out.println(prefix + "Median error distance (km): " + dreport.getMedianDistance());
             System.out.println(prefix + "Fraction of distances within 161 km: " + dreport.getFractionDistancesWithinThreshold(161.0));
             System.out.println("\n" + prefix + "Total documents evaluated: " + dreport.getNumDistances());
+            return null;
         }
 
         else {
@@ -103,7 +104,7 @@ public class EvaluateCorpus extends BaseApp {
             System.out.println(prefix + "Median error distance (km): " + dreport.getMedianDistance());
             System.out.println(prefix + "Fraction of distances within 161 km: " + dreport.getFractionDistancesWithinThreshold(161.0));
             System.out.println("\n" + prefix + "Total toponyms evaluated: " + dreport.getNumDistances());
+            return evaluator;
         }
     }
-
 }

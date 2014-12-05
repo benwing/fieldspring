@@ -20,6 +20,10 @@ public class SignatureEvaluator<A extends Token> extends Evaluator<A> {
 
     private Map<String, List<Location> > predCandidates = new HashMap<String, List<Location> >();
 
+    // Map describing the correct location for each toponym in the predicted
+    // corpus, as determined by the gold corpus.
+    public Map<Toponym, Location> correctLocations = new HashMap<Toponym, Location>();
+
     public SignatureEvaluator(Corpus<A> goldCorpus, boolean doOracleEval) {
         super(goldCorpus);
         this.doOracleEval = doOracleEval;
@@ -33,7 +37,19 @@ public class SignatureEvaluator<A extends Token> extends Evaluator<A> {
         return null;
     }
 
-    private Map<String, Location> populateSigsAndLocations(Corpus<A> corpus, boolean getGoldLocations) {
+    /**
+     * Return a map from toponym signatures to locations. For each toponym, we
+     * fetch a "signature", i.e. a string consisting of the words surrounding
+     * the toponym in some context window (CONTEXT_WINDOW_SIZE, in characters,
+     * ignoring non-alphanumeric characters). The map lists either the selected
+     * or gold location associated with the toponym, depending on the value of
+     * `getGoldLocations`. If we are fetching non-gold locations, we also
+     * populate the class variable `predCandidates` with a map from signatures
+     * to the list of all candidates for a toponym.  We also store into
+     * `signatureToToponym` (if non-null) a mapping back from signatures to the
+     * original toponym.
+     */
+    private Map<String, Location> populateSigsAndLocations(Corpus<A> corpus, boolean getGoldLocations, Map<String, Toponym> signatureToToponym) {
         Map<String, Location> locs = new HashMap<String, Location>();
 
         for(Document<A> doc : corpus) {
@@ -41,6 +57,7 @@ public class SignatureEvaluator<A extends Token> extends Evaluator<A> {
             for(Sentence<A> sent : doc) {
                 StringBuffer sb = new StringBuffer();
                 List<Integer> toponymStarts = new ArrayList<Integer>();
+                List<Toponym> curToponyms = new ArrayList<Toponym>();
                 List<Location> curLocations = new ArrayList<Location>();
                 List<List<Location> > curCandidates = new ArrayList<List<Location> >();
                 for(A token : sent) {
@@ -51,6 +68,7 @@ public class SignatureEvaluator<A extends Token> extends Evaluator<A> {
                            (!getGoldLocations && (toponym.hasSelected() || toponym.getAmbiguity() == 0))) {
                             //System.out.println("Saw " + toponym.getForm()+": "+toponym.getGoldIdx()+"/"+toponym.getCandidates().size());
                             toponymStarts.add(sb.length());
+                            curToponyms.add(toponym);
                             if(getGoldLocations) {
 				/*if(toponym.getGoldIdx() == 801) {
 				    System.out.println(toponym.getForm()+": "+toponym.getGoldIdx()+"/"+toponym.getCandidates().size());
@@ -71,10 +89,13 @@ public class SignatureEvaluator<A extends Token> extends Evaluator<A> {
                 for(int i = 0; i < toponymStarts.size(); i++) {
                     int toponymStart = toponymStarts.get(i);
                     Location curLoc = curLocations.get(i);
+                    Toponym curTop = curToponyms.get(i);
                     String context = getSignature(sb, toponymStart, CONTEXT_WINDOW_SIZE) + doc.getId();
                     locs.put(context, curLoc);
                     if(!getGoldLocations)
                         predCandidates.put(context, curCandidates.get(i));
+                    if (signatureToToponym != null)
+                        signatureToToponym.put(context, curTop);
                 }
             }
         }
@@ -85,14 +106,30 @@ public class SignatureEvaluator<A extends Token> extends Evaluator<A> {
     private DistanceReport dreport = null;
     public DistanceReport getDistanceReport() { return dreport; }
 
+    /**
+     * Evaluate the given corpus by comparing the location of each toponym
+     * in the gold corpus (given as a constructor argument) with the selected
+     * location of the correponding toponym in `pred`. Toponyms are matched
+     * up by comparing "signatures" (the concatenation of all words in a
+     * context window surrounding the toponym), and the predicted location
+     * is considered correct if it's closer to the gold location than any
+     * other possible candidate. For a given gold toponym, a true positive
+     * occurs if a predicted toponym is found and has a matching location;
+     * if a predicted toponym is found but has a non-matching location, both
+     * a false positive and false negative occurs, and a false negative also
+     * occurs when no predicted toponym can be found.
+     */
     @Override
     public Report evaluate(Corpus<A> pred, boolean useSelected) {
         
         Report report = new Report();
         dreport = new DistanceReport();
 
-        Map<String, Location> goldLocs = populateSigsAndLocations(corpus, true);
-        Map<String, Location> predLocs = populateSigsAndLocations(pred, false);
+        Map<String, Toponym> signatureToPredTop = new HashMap<String, Toponym>();
+        Map<String, Location> goldLocs =
+            populateSigsAndLocations(corpus, true, null);
+        Map<String, Location> predLocs =
+            populateSigsAndLocations(pred, false, signatureToPredTop);
 
         Map<String, List<Double> > errors = new HashMap<String, List<Double> >();
 
@@ -110,6 +147,14 @@ public class SignatureEvaluator<A extends Token> extends Evaluator<A> {
                     errors.get(key).add(dist);
                 }
 
+                // Record the "correct" location (closest one to the gold
+                // corpus location) for the predicted toponym,
+                // using the map from signatures to predicted toponyms.
+                if(predCandidates.get(context).size() > 0) {
+                    Location closestMatch = getClosestMatch(goldLoc, predCandidates.get(context));
+                    correctLocations.put(signatureToPredTop.get(context), closestMatch);
+                }
+
                 if(doOracleEval) {
                     if(predCandidates.get(context).size() > 0) {
                         Location closestMatch = getClosestMatch(goldLoc, predCandidates.get(context));
@@ -123,7 +168,7 @@ public class SignatureEvaluator<A extends Token> extends Evaluator<A> {
                     }
                 }
                 else {
-                    if(isClosestMatch(goldLoc, predLoc, predCandidates.get(context))) {//goldLocs.get(context) == predLocs.get(context)) {
+                    if(isClosestMatch(goldLoc, predLoc, predCandidates.get(context))) {//goldLocs.get(context) == predLocs.get(context)) {}
                         //System.out.println("TP: " + context + "|" + goldLocs.get(context));
                         report.incrementTP();
                     }
