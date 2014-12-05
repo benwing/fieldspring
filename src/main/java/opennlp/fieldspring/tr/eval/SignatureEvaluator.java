@@ -71,7 +71,7 @@ public class SignatureEvaluator<A extends Token> extends Evaluator<A> {
                 for(int i = 0; i < toponymStarts.size(); i++) {
                     int toponymStart = toponymStarts.get(i);
                     Location curLoc = curLocations.get(i);
-                    String context = getSignature(sb, toponymStart, CONTEXT_WINDOW_SIZE);
+                    String context = getSignature(sb, toponymStart, CONTEXT_WINDOW_SIZE) + doc.getId();
                     locs.put(context, curLoc);
                     if(!getGoldLocations)
                         predCandidates.put(context, curCandidates.get(i));
