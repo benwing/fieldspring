@@ -25,11 +25,9 @@ object GeoTextLabelPropDecoder extends BaseApp {
   def UNI_ = "uni_"
   def BI_ = "bi_"
 
-  def main(args: Array[String]) = {
-
+  def main(args: Array[String]) {
     this.initializeOptionsFromCommandLine(args)
     this.doDecode
-
   }
 
   def doDecode() = {

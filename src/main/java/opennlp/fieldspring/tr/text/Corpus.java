@@ -31,7 +31,7 @@ import java.io.*;
  */
 public abstract class Corpus<A extends Token> implements Iterable<Document<A>>, Serializable {
 
-    private static Enum<BaseApp.CORPUS_FORMAT> corpusFormat = null;//BaseApp.CORPUS_FORMAT.PLAIN;
+  private static Enum<BaseApp.CORPUS_FORMAT> corpusFormat = null;//BaseApp.CORPUS_FORMAT.PLAIN;
 
   public abstract void addSource(DocumentSource source);
   public abstract void close();
@@ -63,7 +63,7 @@ public abstract class Corpus<A extends Token> implements Iterable<Document<A>>, 
   }
 
   public void setFormat(Enum<BaseApp.CORPUS_FORMAT> corpusFormat) {
-      this.corpusFormat = corpusFormat;
+      Corpus.corpusFormat = corpusFormat;
   }
 }
 
