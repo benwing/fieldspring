@@ -13,6 +13,7 @@ import tr.text._
 import tr.text.prep._
 import tr.text.io._
 
+import scala.collection.mutable
 import scala.collection.JavaConversions._
 
 import org.clapper.argot._
@@ -22,6 +23,43 @@ import opennlp.maxent._
 import opennlp.maxent.io._
 import opennlp.model._
 
+/**
+ * Extract features for training WISTR models. We need the following files:
+ *
+ * 1. (-i, --tr-input) Corpus over which WISTR is to be run. We fetch
+ *    the toponyms from this file and only extract WISTR features for these
+ *    toponyms, for efficiency. This is very important, since we have to
+ *    train a separate classifier for every toponym type (in the types vs.
+ *    tokens sense).
+ * 2. (-c, --corpus) Wikipedia training corpus, a textdb database. This is
+ *    used to fetch the coordinates for each Wikipedia article.
+ * 3. (-w, --wiki) File containing the actual text of each Wikipedia article.
+ * 4. (-g, --gaz) Serialized gazetteer.
+ * 5. (-s, --stoplist) File containing stopwords.
+ *
+ * We proceed as follows:
+ *
+ * 1. We read in the '--tr-input' file and make a list of all distinct
+ *    toponyms, i.e. all toponym types for which we need to extract features.
+ * 2. We read in the Wikipedia training corpus and make a list of all
+ *    Wikipedia articles and their coordinates.
+ * 3. We read in the text of the Wikipedia articles and pass the text
+ *    through a toponym annotator, which uses the OpenNLP named entity
+ *    recognizer to find toponyms and looks the toponyms up in the gazetteer.
+ * 4. For each article, we first make sure it has a coordinate, then
+ *    go through all its toponyms, and for the toponyms we "care about"
+ *    (for which we need to extract features), if the toponym has a candidate
+ *    that is within '--threshold' distance (default 10km) of the article's
+ *    coordinate, we assume the toponym resolves to that candidate and
+ *    create a data instance for a candidate classifier for the toponym,
+ *    whose label is the candidate and whose features are the words surrounding
+ *    the toponym instance. The goal here is to train a classifier over the
+ *    candidates of a toponym type, so that we can use the text surrounding
+ *    an unresolved toponym in the test set to resolve that toponym.
+ * 5. For each toponym type, we gather all the data instances we have created
+ *    for that toponym type and use OpenNLP to train a classifier to resolve
+ *    toponyms of that type.
+ */
 object SupervisedTRFeatureExtractor extends App {
   val parser = new ArgotParser("fieldspring run opennlp.fieldspring.tr.app.SupervisedTRMaxentModelTrainer", preUsage = Some("Fieldspring"))
 
@@ -32,6 +70,8 @@ object SupervisedTRFeatureExtractor extends App {
   val stoplistInputFile = parser.option[String](List("s", "stoplist"), "stoplist", "stopwords input file")
   val modelsOutputDir = parser.option[String](List("d", "models-dir"), "models-dir", "models output directory")
   val thresholdParam = parser.option[Double](List("t", "threshold"), "threshold", "maximum distance threshold")
+  val useGold = parser.flag[Boolean](List("use-gold"), "--wiki specifies gold toponym corpus")
+  val coordFile = parser.flag[Boolean](List("coord-file"), "--corpus specifies wiki coord file")
 
   try {
     parser.parse(args)
@@ -53,11 +93,32 @@ object SupervisedTRFeatureExtractor extends App {
   toponyms.foreach(println)
 
   println("Reading Wikipedia geotags from " + wikiCorpusInputFile.value.get + "...")
-  val idsToCoords = new collection.mutable.HashMap[String, Coordinate]
-  for (curLine <- localfh.openr(wikiCorpusInputFile.value.get)) {
-    val tokens = curLine.split("\t")
-    val coordTokens = tokens(2).split(",")
-    idsToCoords.put(tokens(0), Coordinate.fromDegrees(coordTokens(0).toDouble, coordTokens(1).toDouble))
+  val idsToCoords = mutable.Map[String, Coordinate]()
+
+  def putCoord(id: String, coord: String) {
+    val coordTokens = coord.split(",")
+    idsToCoords.put(id, Coordinate.fromDegrees(coordTokens(0).toDouble, coordTokens(1).toDouble))
+  }
+  val isCoordFile = coordFile.value.getOrElse(false)
+  if (isCoordFile) {
+    val title_re = "^Article title: (.*)$".r
+    val id_re = "^Article ID: (.*)$".r
+    val coord_re = "^Article coordinates: (.*)$".r
+    var title = ""
+    var id = ""
+    for (line <- localfh.openr(wikiCorpusInputFile.value.get)) {
+      line match {
+        case title_re(t) => { title = t }
+        case id_re(i) => { id = i }
+        case coord_re(c) => { putCoord(id, c) }
+        case _ => { }
+      }
+    }
+  } else {
+    for (curLine <- localfh.openr(wikiCorpusInputFile.value.get)) {
+      val tokens = curLine.split("\t")
+      putCoord(tokens(0), tokens(2))
+    }
   }
 
   println("Reading serialized gazetteer from " + gazInputFile.value.get + " ...")
@@ -71,11 +132,25 @@ object SupervisedTRFeatureExtractor extends App {
   val recognizer = new OpenNLPRecognizer
   val tokenizer = new OpenNLPTokenizer
 
-  val wikiTextCorpus = Corpus.createStreamCorpus
+  val inputfn = wikiTextInputFile.value.get
+  val isGold = useGold.value.getOrElse(false)
 
-  val reader = localfh.open_buffered_reader(wikiTextInputFile.value.get)
-  wikiTextCorpus.addSource(new ToponymAnnotator(new WikiTextSource(reader), recognizer, gnGaz))
-  wikiTextCorpus.setFormat(BaseApp.CORPUS_FORMAT.WIKITEXT)
+  val wikiTextCorpus =
+    //if (isGold && inputfn.endsWith(".ser.gz"))
+    //  TopoUtil.readStoredCorpusFromSerialized(inputfn)
+    //else
+    {
+      val reader = localfh.open_buffered_reader(inputfn)
+      val corpus = Corpus.createStreamCorpus
+      if (isGold) {
+        corpus.addSource(new TrXMLSource(reader, tokenizer))
+        corpus.setFormat(BaseApp.CORPUS_FORMAT.TRCONLL)
+      } else {
+        corpus.addSource(new ToponymAnnotator(new WikiTextSource(reader), recognizer, gnGaz))
+        corpus.setFormat(BaseApp.CORPUS_FORMAT.WIKITEXT)
+      }
+      corpus
+    }
 
   val stoplist:Set[String] =
     if(stoplistInputFile.value != None) {
@@ -89,11 +164,14 @@ object SupervisedTRFeatureExtractor extends App {
 
   println("Building training sets for each toponym type...")
 
+  // Map from toponyms to training data. The training data is a list of
+  // data instances, each of which is a tuple consisting of an array of
+  // features and a label.
   val toponymsToTrainingSets = new collection.mutable.HashMap[String, List[(Array[String], String)]]
   (new Meter("processing", "document")).foreach(wikiTextCorpus) { doc =>
-    if(idsToCoords.containsKey(doc.getId)) {
-      val docCoord = idsToCoords(doc.getId)
-      println(s"${doc.title} (${doc.getId}) has a geotag: $docCoord")
+    if(isGold || idsToCoords.containsKey(doc.getId)) {
+      val docCoord = idsToCoords.getOrElse(doc.getId, null)
+      println(s"Processing ${doc.title} (${doc.getId}) with geotag $docCoord")
       val docAsArray = TextUtil.getDocAsArray(doc)
       var tokIndex = 0
       for (token <- docAsArray) {
@@ -103,7 +181,11 @@ object SupervisedTRFeatureExtractor extends App {
             if(toponyms(token.getForm)) {
               println(token.getForm+" is a toponym we care about.")
               //val bestCellNum = getBestCellNum(toponym, docCoord, dpc)
-              val bestCandIndex = getBestCandIndex(toponym, docCoord)
+              val bestCandIndex =
+                if (isGold)
+                  toponym.getGoldIdx
+                else
+                  getBestCandIndex(toponym, docCoord)
               if(bestCandIndex != -1) {
                 val contextFeatures = TextUtil.getContextFeatures(docAsArray, tokIndex, windowSize, stoplist)
                 val prevSet = toponymsToTrainingSets.getOrElse(token.getForm, Nil)
