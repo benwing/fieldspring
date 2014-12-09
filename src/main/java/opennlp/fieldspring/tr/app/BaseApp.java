@@ -85,7 +85,8 @@ public class BaseApp {
         PLAIN,
         TRCONLL,
         GEOTEXT,
-        WIKITEXT
+        WIKITEXT,
+        TOPOWIKITEXT
     }
     protected Enum<CORPUS_FORMAT> corpusFormat = CORPUS_FORMAT.PLAIN;
 	
@@ -270,7 +271,9 @@ public class BaseApp {
                     //    serializedGoldCorpusInputPath = value;
                     break;
                 case 'c':
-                    if(value.toLowerCase().startsWith("t"))
+                    if(value.toLowerCase().startsWith("tw"))
+                        corpusFormat = CORPUS_FORMAT.TOPOWIKITEXT;
+                    else if(value.toLowerCase().startsWith("t"))
                         corpusFormat = CORPUS_FORMAT.TRCONLL;
                     else if(value.toLowerCase().startsWith("g"))
                         corpusFormat = CORPUS_FORMAT.GEOTEXT;

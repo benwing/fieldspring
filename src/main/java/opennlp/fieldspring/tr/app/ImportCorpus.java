@@ -48,6 +48,7 @@ public class ImportCorpus extends BaseApp {
             checkExists(serGazInputPath);
 
         Tokenizer tokenizer = new OpenNLPTokenizer();
+        SentenceDivider divider = new OpenNLPSentenceDivider();
         OpenNLPRecognizer recognizer = new OpenNLPRecognizer();
 
         GeoNamesGazetteer gnGaz = null;
@@ -87,6 +88,11 @@ public class ImportCorpus extends BaseApp {
                            recognizer, gnGaz, null));
             }
         }
+        else if(corpusFormat == CORPUS_FORMAT.TOPOWIKITEXT) {
+            corpus.addSource(new ToponymWikiSource(
+                new BufferedReader(new FileReader(corpusInputPath)),
+                divider, tokenizer, gnGaz));
+        }
         else if(corpusFormat == CORPUS_FORMAT.GEOTEXT) {
             corpus.addSource(new ToponymAnnotator(new GeoTextSource(
                 new BufferedReader(new FileReader(corpusInputPath)), tokenizer),
@@ -94,7 +100,7 @@ public class ImportCorpus extends BaseApp {
         }
 	else if (corpusInputPath.endsWith("txt")) {
             corpus.addSource(new ToponymAnnotator(new PlainTextSource(
-                             new BufferedReader(new FileReader(corpusInputPath)), new OpenNLPSentenceDivider(), tokenizer, corpusInputPath),
+                             new BufferedReader(new FileReader(corpusInputPath)), divider, tokenizer, corpusInputPath),
                 recognizer, gnGaz, null));
 	}
         else {
