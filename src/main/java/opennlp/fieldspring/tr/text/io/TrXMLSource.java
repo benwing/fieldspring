@@ -101,10 +101,10 @@ public class TrXMLSource extends DocumentSource {
     //assert this.in.isStartElement() && this.in.getLocalName().equals("doc");
     String id;
     if(TrXMLSource.this.sentsPerDocument <= 0)
-        id = TrXMLSource.this.in.getAttributeValue(null, "id");
+        id = in.getAttributeValue(null, "id");
     else {
         if(TrXMLSource.this.partOfDoc == 0)
-            TrXMLSource.this.curDocId = TrXMLSource.this.in.getAttributeValue(null, "id");
+            TrXMLSource.this.curDocId = in.getAttributeValue(null, "id");
 
         id = TrXMLSource.this.curDocId + ".p" + TrXMLSource.this.partOfDoc;
     }
@@ -117,8 +117,8 @@ public class TrXMLSource extends DocumentSource {
         return new SentenceIterator() {
           int sentNumber = 0;
           public boolean hasNext() {
-            if (TrXMLSource.this.in.isStartElement() &&
-                TrXMLSource.this.in.getLocalName().equals("s") &&
+            if (in.isStartElement() &&
+                in.getLocalName().equals("s") &&
                 (TrXMLSource.this.sentsPerDocument <= 0 ||
                  sentNumber < TrXMLSource.this.sentsPerDocument)) {
               return true;
@@ -128,21 +128,21 @@ public class TrXMLSource extends DocumentSource {
           }
 
           public Sentence<Token> next() {
-            String id = TrXMLSource.this.in.getAttributeValue(null, "id");
+            String id = in.getAttributeValue(null, "id");
             List<Token> tokens = new ArrayList<Token>();
             List<Span<Toponym>> toponymSpans = new ArrayList<Span<Toponym>>();
 
             try {
-              while (TrXMLSource.this.in.nextTag() == XMLStreamReader.START_ELEMENT &&
-                    (TrXMLSource.this.in.getLocalName().equals("w") ||
-                     TrXMLSource.this.in.getLocalName().equals("toponym"))) {
-                String name = TrXMLSource.this.in.getLocalName();
+              while (in.nextTag() == XMLStreamReader.START_ELEMENT &&
+                    (in.getLocalName().equals("w") ||
+                     in.getLocalName().equals("toponym"))) {
+                String name = in.getLocalName();
  
                 if (name.equals("w")) {
-                  tokens.add(new SimpleToken(TrXMLSource.this.in.getAttributeValue(null, "tok")));
+                  tokens.add(new SimpleToken(in.getAttributeValue(null, "tok")));
                 } else {
                   int spanStart = tokens.size();
-                  String form = TrXMLSource.this.in.getAttributeValue(null, "term");
+                  String form = in.getAttributeValue(null, "term");
                   List<String> formTokens = TrXMLSource.this.tokenizer.tokenize(form);
 
                   for (String formToken : TrXMLSource.this.tokenizer.tokenize(form)) {
@@ -152,22 +152,28 @@ public class TrXMLSource extends DocumentSource {
                   ArrayList<Location> locations = new ArrayList<Location>();
                   int goldIdx = -1;
 
-                  if (TrXMLSource.this.in.nextTag() == XMLStreamReader.START_ELEMENT &&
-                      TrXMLSource.this.in.getLocalName().equals("candidates")) {
-                    while (TrXMLSource.this.in.nextTag() == XMLStreamReader.START_ELEMENT &&
-                           TrXMLSource.this.in.getLocalName().equals("cand")) {
-                      String selected = TrXMLSource.this.in.getAttributeValue(null, "selected");
+                  if (in.nextTag() == XMLStreamReader.START_ELEMENT &&
+                      in.getLocalName().equals("candidates")) {
+                    while (in.nextTag() == XMLStreamReader.START_ELEMENT &&
+                           in.getLocalName().equals("cand")) {
+                      String selected = in.getAttributeValue(null, "selected");
                       if (selected != null && selected.equals("yes")) {
                         goldIdx = locations.size();
                       }
+                      // ImportCorpus writes gold=true instead of selected=yes
+                      selected = in.getAttributeValue(null, "gold");
+                      if (selected != null && selected.equals("true")) {
+                        goldIdx = locations.size();
+                      }
 
-                      double lat = Double.parseDouble(TrXMLSource.this.in.getAttributeValue(null, "lat"));
-                      double lng = Double.parseDouble(TrXMLSource.this.in.getAttributeValue(null, "long"));
+                      double lat = Double.parseDouble(in.getAttributeValue(null, "lat"));
+                      double lng = Double.parseDouble(in.getAttributeValue(null, "long"));
                       Region region = new PointRegion(Coordinate.fromDegrees(lat, lng));
                       locations.add(new Location(form, region));
-                      TrXMLSource.this.nextTag();
-                      assert TrXMLSource.this.in.isEndElement() &&
-                             TrXMLSource.this.in.getLocalName().equals("cand");
+                      // Skip to end tag, skipping over any representatives
+                      while (in.nextTag() != XMLStreamReader.END_ELEMENT ||
+                          !in.getLocalName().equals("cand"))
+                        ;
                     }
                   }
 
