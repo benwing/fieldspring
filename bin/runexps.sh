@@ -6,6 +6,7 @@ MEMORY=
 WIKITAG=enwiki-20131104
 WIKILOGSUFFIX=nbayes-dirichlet
 CWARSUFFIX=20spd
+WISTRSUFFIX=
 FSOPTS=
 TEMPFILE=temp-results.$$.txt
 TEMPWEIGHTSFILE=probToWMD.$$.dat
@@ -22,6 +23,8 @@ while true ; do
       WIKILOGSUFFIX="$2"; shift 2 ;;
     -cwar-suffix | --cwar-suffix | -cwarsuffix | --cwarsuffix )
       CWARSUFFIX="$2"; shift 2 ;;
+    -wistr-suffix | --wistr-suffix | -wistrsuffix | --wistrsuffix )
+      WISTRSUFFIX="$2"; shift 2 ;;
     -predicted | --predicted ) PREDICTED="$2"; shift 2 ;;
     -output-tag | --output-tag ) OUTPUTTAG=yes; shift ;;
     ## Options passed to fieldspring
@@ -44,6 +47,9 @@ if [ -n "$WIKILOGSUFFIX" ]; then
 fi
 if [ -n "$CWARSUFFIX" ]; then
   CWARSUFFIX="-$CWARSUFFIX"
+fi
+if [ -n "$WISTRSUFFIX" ]; then
+  WISTRSUFFIX="-$WISTRSUFFIX"
 fi
 
 corpusname=$1; # e.g. trf or cwar
@@ -75,13 +81,15 @@ elif [ -e "$logfile.gz" ]; then
   logfile="$logfile.gz"
 fi
 
-nohuptag="$WIKITAG-$corpusname$split-$topidmethod-g1dpc$corpussuffix$WIKILOGSUFFIX"
+wikicorpustag="$WIKITAG$WISTRSUFFIX-$corpusname$split-$topidmethod"
+
+nohuptag="$wikicorpustag-g1dpc$corpussuffix$WIKILOGSUFFIX"
 
 if [ -n "$PREDICTED" ]; then
-  modelstag=$WIKITAG-$corpusname$split-g1dpc$corpussuffix$WIKILOGSUFFIX-$PREDICTED-predicted-gt
+  modelstag=$wikicorpustag-g1dpc$corpussuffix$WIKILOGSUFFIX-$PREDICTED-predicted
   nohuptag="$nohuptag-$PREDICTED-predicted"
 else
-  modelstag=$WIKITAG-$corpusname$split-gt
+  modelstag=$wikicorpustag
 fi
 modelsdir=wistr-models-$modelstag/
 listrmodelsdir=listr-models-$modelstag/
