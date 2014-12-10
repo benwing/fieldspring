@@ -9,6 +9,7 @@ import opennlp.fieldspring.tr.text.prep.*;
 import opennlp.fieldspring.tr.topo.gaz.*;
 import opennlp.fieldspring.tr.eval.*;
 import opennlp.fieldspring.tr.util.*;
+import opennlp.fieldspring.tr.app.BaseApp;
 import java.io.*;
 import java.util.zip.*;
 
@@ -139,24 +140,6 @@ public class TopoUtil {
         return -1;
     }
 
-    public static Corpus readCorpusFromSerialized(String serializedCorpusInputPath) throws Exception {
-
-        Corpus corpus;
-        ObjectInputStream ois = null;
-        if(serializedCorpusInputPath.toLowerCase().endsWith(".gz")) {
-            GZIPInputStream gis = new GZIPInputStream(new FileInputStream(serializedCorpusInputPath));
-            ois = new ObjectInputStream(gis);
-        }
-        else {
-            FileInputStream fis = new FileInputStream(serializedCorpusInputPath);
-            ois = new ObjectInputStream(fis);
-        }
-        corpus = (StoredCorpus) ois.readObject();
-
-        return corpus;
-    }
-
-
     public static StoredCorpus readStoredCorpusFromSerialized(String serializedCorpusInputPath) throws Exception {
 
         StoredCorpus corpus;
@@ -172,6 +155,18 @@ public class TopoUtil {
         corpus = (StoredCorpus) ois.readObject();
 
         return corpus;
+    }
+
+    public static StoredCorpus readTRCoNLLCorpus(String corpusInputPath) throws Exception {
+        if(corpusInputPath.toLowerCase().endsWith("ser.gz"))
+            return readStoredCorpusFromSerialized(corpusInputPath);
+        else {
+            StoredCorpus corpus = Corpus.createStoredCorpus();
+            corpus.addSource(new TrXMLDirSource(new File(corpusInputPath), new OpenNLPTokenizer()));
+            corpus.setFormat(BaseApp.CORPUS_FORMAT.TRCONLL);
+            corpus.load();
+            return corpus;
+        }
     }
 
     public static List<Location> filter(List<Location> locs, Region boundingBox) {

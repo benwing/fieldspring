@@ -18,8 +18,7 @@ object CorpusInfo {
 
   def getCorpusInfo(filename: String/* useNER:Boolean = false*/): collection.mutable.HashMap[String, collection.mutable.HashMap[Int, Int]] = {
 
-    val corpus = if(filename.endsWith(".ser.gz")) TopoUtil.readStoredCorpusFromSerialized(filename)
-                 else Corpus.createStoredCorpus
+    val corpus = TopoUtil.readTRCoNLLCorpus(filename)
 
     /*if(useNER) {
 
@@ -30,14 +29,10 @@ object CorpusInfo {
 
       val gnGaz = ois.readObject.asInstanceOf[GeoNamesGazetteer]
 
+      val corpus = Corpus.createStoredCorpus
       corpus.addSource(new ToponymAnnotator(new ToponymRemover(new TrXMLDirSource(new File(filename), new OpenNLPTokenizer)), new OpenNLPRecognizer, gnGaz, null))
+      corpus
     }*/
-    if(!filename.endsWith(".ser.gz")) {
-      corpus.addSource(new TrXMLDirSource(new File(filename), new OpenNLPTokenizer))
-      corpus.setFormat(BaseApp.CORPUS_FORMAT.TRCONLL)
-      corpus.load
-    }
-
     
     val topsToCellCounts = new collection.mutable.HashMap[String, collection.mutable.HashMap[Int, Int]]
     

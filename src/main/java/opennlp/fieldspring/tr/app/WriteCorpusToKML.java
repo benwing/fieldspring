@@ -27,7 +27,7 @@ public class WriteCorpusToKML extends BaseApp {
         }
 
         System.out.print("Reading serialized corpus from " + currentRun.getSerializedCorpusInputPath() + " ...");
-        Corpus corpus = TopoUtil.readCorpusFromSerialized(currentRun.getSerializedCorpusInputPath());
+        Corpus corpus = TopoUtil.readStoredCorpusFromSerialized(currentRun.getSerializedCorpusInputPath());
         System.out.println("done.");
 
         currentRun.writeToKML(corpus, currentRun.getKMLOutputPath(), currentRun.getOutputGoldLocations(), currentRun.getOutputUserKML(), currentRun.getCorpusFormat());
