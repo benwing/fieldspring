@@ -70,8 +70,9 @@ object SupervisedTRFeatureExtractor extends App {
   val stoplistInputFile = parser.option[String](List("s", "stoplist"), "stoplist", "stopwords input file")
   val modelsOutputDir = parser.option[String](List("d", "models-dir"), "models-dir", "models output directory")
   val thresholdParam = parser.option[Double](List("t", "threshold"), "threshold", "maximum distance threshold")
-  val useGold = parser.flag[Boolean](List("use-gold"), "--wiki specifies gold toponym corpus")
+  val corpusFormat = parser.option[String](List("f", "corpus-format"), "corpus-format", "format of --wiki: wikitext (default), trconll, toponymwiki")
   val coordFile = parser.flag[Boolean](List("coord-file"), "--corpus specifies wiki coord file")
+  val verboseParam = parser.flag[Boolean](List("verbose"), "output verbose info")
 
   try {
     parser.parse(args)
@@ -86,6 +87,7 @@ object SupervisedTRFeatureExtractor extends App {
   val distanceTable = new DistanceTable
 
   val threshold = if(thresholdParam.value != None) thresholdParam.value.get else 10.0
+  val verbose = verboseParam.value.getOrElse(false)
 
   println("Reading toponyms from TR-CoNLL at " + trInputFile.value.get + " ...")
   val toponyms:Set[String] = CorpusInfo.getCorpusInfo(trInputFile.value.get).map(_._1).toSet
@@ -130,10 +132,12 @@ object SupervisedTRFeatureExtractor extends App {
   println("Reading Wiki text corpus from " + wikiTextInputFile.value.get + " ...")
 
   val recognizer = new OpenNLPRecognizer
+  val divider = new OpenNLPSentenceDivider
   val tokenizer = new OpenNLPTokenizer
 
   val inputfn = wikiTextInputFile.value.get
-  val isGold = useGold.value.getOrElse(false)
+  val corpusFmt = corpusFormat.value.getOrElse("wikitext")
+  val isGold = corpusFmt != "wikitext"
 
   val wikiTextCorpus =
     //if (isGold && inputfn.endsWith(".ser.gz"))
@@ -142,7 +146,10 @@ object SupervisedTRFeatureExtractor extends App {
     {
       val reader = localfh.open_buffered_reader(inputfn)
       val corpus = Corpus.createStreamCorpus
-      if (isGold) {
+      if (corpusFmt == "toponymwiki") {
+        corpus.addSource(new ToponymWikiSource(reader, divider, tokenizer, gnGaz, verbose = verbose))
+        corpus.setFormat(BaseApp.CORPUS_FORMAT.TOPOWIKITEXT)
+      } else if (corpusFmt == "trconll") {
         corpus.addSource(new TrXMLSource(reader, tokenizer))
         corpus.setFormat(BaseApp.CORPUS_FORMAT.TRCONLL)
       } else {
@@ -171,7 +178,8 @@ object SupervisedTRFeatureExtractor extends App {
   (new Meter("processing", "document")).foreach(wikiTextCorpus) { doc =>
     if(isGold || idsToCoords.containsKey(doc.getId)) {
       val docCoord = idsToCoords.getOrElse(doc.getId, null)
-      println(s"Processing ${doc.title} (${doc.getId}) with geotag $docCoord")
+      if (verbose)
+        println(s"Processing ${doc.title} (${doc.getId}) with geotag $docCoord")
       val docAsArray = TextUtil.getDocAsArray(doc)
       var tokIndex = 0
       for (token <- docAsArray) {
@@ -179,7 +187,8 @@ object SupervisedTRFeatureExtractor extends App {
           val toponym = token.asInstanceOf[Toponym]
           if (toponym.getAmbiguity > 0) {
             if(toponyms(token.getForm)) {
-              println(token.getForm+" is a toponym we care about.")
+              if (verbose)
+                println(token.getForm+" is a toponym we care about.")
               //val bestCellNum = getBestCellNum(toponym, docCoord, dpc)
               val bestCandIndex =
                 if (isGold)
@@ -189,14 +198,17 @@ object SupervisedTRFeatureExtractor extends App {
               if(bestCandIndex != -1) {
                 val contextFeatures = TextUtil.getContextFeatures(docAsArray, tokIndex, windowSize, stoplist)
                 val prevSet = toponymsToTrainingSets.getOrElse(token.getForm, Nil)
-                print(toponym+": ")
-                contextFeatures.foreach(f => print(f+","))
-                println(bestCandIndex)
+                if (verbose) {
+                  print(toponym+": ")
+                  contextFeatures.foreach(f => print(f+","))
+                  println(bestCandIndex)
+                }
 
                 toponymsToTrainingSets.put(token.getForm, (contextFeatures, bestCandIndex.toString) :: prevSet)
               }
             } else {
-              println(token.getForm+" is a toponym, but we don't care about it.")
+              if (verbose)
+                println(token.getForm+" is a toponym, but we don't care about it.")
             }
           }
         }
@@ -204,7 +216,8 @@ object SupervisedTRFeatureExtractor extends App {
       }
     }
     else {
-      println(s"${doc.title} (${doc.getId}) does not have a geotag.")
+      if (verbose)
+        println(s"${doc.title} (${doc.getId}) does not have a geotag.")
       for(sent <- doc) { for(token <- sent) {} }
     }
   }
