@@ -91,7 +91,7 @@ public class ImportCorpus extends BaseApp {
         else if(corpusFormat == CORPUS_FORMAT.TOPOWIKITEXT) {
             corpus.addSource(new ToponymWikiSource(
                 new BufferedReader(new FileReader(corpusInputPath)),
-                divider, tokenizer, gnGaz));
+                divider, tokenizer, gnGaz, false));
         }
         else if(corpusFormat == CORPUS_FORMAT.GEOTEXT) {
             corpus.addSource(new ToponymAnnotator(new GeoTextSource(

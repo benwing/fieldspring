@@ -42,7 +42,7 @@ case class FileFormatException(msg: String) extends RuntimeException(msg)
  */
 class ToponymWikiSource(
   reader: BufferedReader, divider: SentenceDivider, tokenizer: Tokenizer,
-  gazetteer: Gazetteer
+  gazetteer: Gazetteer, verbose: Boolean = false
 ) extends TextSource(reader) {
 
   val TITLE_PREFIX = "Article title: "
@@ -107,11 +107,12 @@ class ToponymWikiSource(
     "WV" -> "West Virginia",
     "WI" -> "Wisconsin",
     "WY" -> "Wyoming"
-  )
+  ).map { case (x,y) => (x.toLowerCase, y.toLowerCase) }
   val state_to_code = code_to_state.map { case (x,y) => (y,x) }
 
-  def errprint(fmt: String, args: Any*) {
-    System.err.println(fmt format (args:_*))
+  def vprint(fmt: String, args: Any*) {
+    if (verbose)
+      System.err.println(fmt format (args:_*))
   }
 
   def debprint(fmt: String, args: Any*) {
@@ -159,7 +160,7 @@ class ToponymWikiSource(
                 Coordinate.fromDegrees(lat.toDouble, long.toDouble)
               } catch {
                 case _: NumberFormatException => {
-                  errprint("NumberFormatException parsing %s,%s", lat, long)
+                  vprint("NumberFormatException parsing %s,%s", lat, long)
                   Coordinate.fromDegrees(0.0, 0.0)
                 }
               }
@@ -217,7 +218,7 @@ class ToponymWikiSource(
                 else
                   MAX_ALLOWABLE_DISTANCE)
               ) {
-                errprint("Rejecting closest candidate %s,%s for %s->%s because distance %.2f km is too much",
+                vprint("Rejecting closest candidate %s,%s for %s->%s because distance %.2f km is too much",
                   closest_cand.getName, closest_cand.getAdmin1Code, form,
                   article, closest_dist)
               } else {
@@ -228,19 +229,19 @@ class ToponymWikiSource(
                 // Check that the toponym's state (if any) matches the
                 // state of the closest candidate.
                 if (article contains ", ") {
-                  val wikitop_state = article.replaceAll(".*, ", "")
+                  val wikitop_state = article.replaceAll(".*, ", "").toLowerCase
                   if (state_to_code contains wikitop_state) {
                     val cand_admin1 = closest_cand.getAdmin1Code
                     val cand_loc = "%s,%s" format (closest_cand.getName,
                       cand_admin1)
                     if (!cand_admin1.startsWith("US."))
-                      errprint("For wiki toponym %s->%s, closest candidate %s not in US", form, article, cand_loc)
+                      vprint("For wiki toponym %s->%s, closest candidate %s not in US", form, article, cand_loc)
                     else {
-                      val cand_state_code = cand_admin1.drop(3)
+                      val cand_state_code = cand_admin1.drop(3).toLowerCase
                       if (!(code_to_state contains cand_state_code))
-                        errprint("For wiki toponym %s->%s, closest candidate %s doesn't have state code", form, article, cand_loc)
+                        vprint("For wiki toponym %s->%s, closest candidate %s doesn't have state code", form, article, cand_loc)
                       else if (code_to_state(cand_state_code) != wikitop_state)
-                        errprint("For wiki toponym %s->%s, closest candidate %s doesn't match in state", form, article, cand_loc)
+                        vprint("For wiki toponym %s->%s, closest candidate %s doesn't match in state", form, article, cand_loc)
                     }
                   }
                 }
@@ -249,7 +250,7 @@ class ToponymWikiSource(
                   new Span[Token](span_start, toks.size, toponym)
               }
             } else {
-              errprint("Can't find %s -> %s (%s) in gazetteer",
+              vprint("Can't find %s -> %s (%s) in gazetteer",
                 form, article, coord)
             }
           }
@@ -276,18 +277,23 @@ class ToponymWikiSource(
                     // Look up candidates for state
                     val state_cands = gazetteer.lookup(state.toLowerCase)
                     if (state_cands == null)
-                      errprint("Can't find state '%s' in gazetteer?", state)
+                      vprint("Can't find state '%s' in gazetteer?", state)
                     else {
                       var found_state = false
                       breakable {
                         // Find the correct candidate by matching the
                         // admin code
                         for ((cand, index) <- state_cands.zipWithIndex) {
+                          val state_lc = state.toLowerCase
                           if (cand.getType == Location.Type.STATE) {
-                            if (!state_to_code.contains(state))
-                              errprint("Don't recognize state '%s'", state)
-                            else if (cand.getAdmin1Code ==
-                                "US." + state_to_code(state)) {
+                            val code_lc =
+                              if (code_to_state contains state_lc)
+                                state_lc
+                              else state_to_code.getOrElse(state_lc, null)
+                            if (code_lc == null)
+                              vprint("Don't recognize state '%s'", state)
+                            else if (cand.getAdmin1Code.toLowerCase ==
+                                "us." + code_lc) {
                               debprint("Found matching state in candidate with admin code %s", cand.getAdmin1Code)
                               val toponym = new SimpleToponym(state,
                                 state_cands, index)
@@ -299,12 +305,12 @@ class ToponymWikiSource(
                               found_state = true
                               break
                             } else
-                              errprint("Found state candidate for '%s' but admin code '%s' doesn't match", state, cand.getAdmin1Code)
+                              vprint("Found state candidate for '%s' but admin code '%s' doesn't match", state, cand.getAdmin1Code)
                           }
                         }
                       }
                       if (!found_state)
-                        errprint("Can't find appropriate candidate for state '%s'", state)
+                        vprint("Can't find appropriate candidate for state '%s'", state)
                     }
                   }
                 }
