@@ -51,7 +51,7 @@ class ToponymWikiSource(
   val ID_INDEX = ID_PREFIX.length
   val MAX_ALLOWABLE_DISTANCE = 100
   val MAX_ALLOWABLE_STATE_DISTANCE = 500
-  val toponym_regex = """\[\[\[(?:Link|Synthlink): (.*?)\|(.*?)\|(.*?)\]\]\]""".r
+  val toponym_regex = """\[\[\[(?:Link|Synthlink): (.*?)@@@(.*?)@@@(.*?)\]\]\]""".r
 
   val code_to_state = Map(
     "AL" -> "Alabama",
