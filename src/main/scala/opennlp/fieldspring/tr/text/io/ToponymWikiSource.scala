@@ -155,7 +155,14 @@ class ToponymWikiSource(
               // processwiki.py replaced periods with underscores to avoid
               // confusing the OpenNLP sentence detector, so undo this
               val Array(lat, long) = m.group(3).replace('_', '.').split(",")
-              val coord = Coordinate.fromDegrees(lat.toDouble, long.toDouble)
+              val coord = try {
+                Coordinate.fromDegrees(lat.toDouble, long.toDouble)
+              } catch {
+                case _: NumberFormatException => {
+                  errprint("NumberFormatException parsing %s,%s", lat, long)
+                  Coordinate.fromDegrees(0.0, 0.0)
+                }
+              }
               val wikitop = WikiToponym(m.group(1), m.group(2), coord)
               val topindex = s"qtoponymq${next_wiki_toponym}"
               next_wiki_toponym += 1
