@@ -21,6 +21,7 @@ public class Report {
     private int fp;
     private int fn;
     private int totalInstances;
+    public double typeAccuracy;
 
     public int getFN() {
         return fn;

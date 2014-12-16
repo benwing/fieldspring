@@ -18,6 +18,7 @@ public class SignatureEvaluator<A extends Token> extends Evaluator<A> {
 
     private boolean doOracleEval;
 
+    // Map from signatures to list of all candidates for a toponym
     private Map<String, List<Location> > predCandidates = new HashMap<String, List<Location> >();
 
     // Map describing the correct location for each toponym in the predicted
@@ -131,17 +132,22 @@ public class SignatureEvaluator<A extends Token> extends Evaluator<A> {
         Map<String, Location> predLocs =
             populateSigsAndLocations(pred, false, signatureToPredTop);
 
+        // Map from toponym types to list of error distances for toponyms of that type
         Map<String, List<Double> > errors = new HashMap<String, List<Double> >();
+        // For toponym types, number of toponyms correctly identified
+        Map<String, Integer> toponymsCorrect = new HashMap<String, Integer>();
+        // For toponym types, number of toponyms seen
+        Map<String, Integer> toponymsSeen = new HashMap<String, Integer>();
 
         for(String context : goldLocs.keySet()) {
             if(predLocs.containsKey(context)) {
                 Location goldLoc = goldLocs.get(context);
                 Location predLoc = predLocs.get(context);
+                String key = goldLoc.getName().toLowerCase();
 
                 if(predLoc != null && !doOracleEval) {
                     double dist = goldLoc.distanceInKm(predLoc);
                     dreport.addDistance(dist);
-                    String key = goldLoc.getName().toLowerCase();
                     if(!errors.containsKey(key))
                         errors.put(key, new ArrayList<Double>());
                     errors.get(key).add(dist);
@@ -161,15 +167,20 @@ public class SignatureEvaluator<A extends Token> extends Evaluator<A> {
                         double dist = goldLoc.distanceInKm(closestMatch);
                         dreport.addDistance(dist);
                         report.incrementTP();
-                        String key = goldLoc.getName().toLowerCase();
                         if(!errors.containsKey(key))
                             errors.put(key, new ArrayList<Double>());
                         errors.get(key).add(dist);
                     }
                 }
                 else {
+                    if(!toponymsSeen.containsKey(key))
+                        toponymsSeen.put(key, 0);
+                    if(!toponymsCorrect.containsKey(key))
+                        toponymsCorrect.put(key, 0);
+                    toponymsSeen.put(key, 1 + toponymsSeen.get(key));
                     if(isClosestMatch(goldLoc, predLoc, predCandidates.get(context))) {//goldLocs.get(context) == predLocs.get(context)) {}
                         //System.out.println("TP: " + context + "|" + goldLocs.get(context));
+                        toponymsCorrect.put(key, 1 + toponymsCorrect.get(key));
                         report.incrementTP();
                     }
                     else {
@@ -213,6 +224,13 @@ public class SignatureEvaluator<A extends Token> extends Evaluator<A> {
             e.printStackTrace();
             System.exit(1);
         }
+
+        double typeAccuracy = 0.0;
+        for (String toponym : toponymsSeen.keySet()) {
+            typeAccuracy += ((double) toponymsCorrect.get(toponym)) / toponymsSeen.get(toponym);
+        }
+        typeAccuracy /= toponymsSeen.size();
+        report.typeAccuracy = typeAccuracy;
 
         return report;
     }

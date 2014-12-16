@@ -97,6 +97,7 @@ public class EvaluateCorpus extends BaseApp {
             System.out.println(prefix + "R: " + report.getRecall());
             System.out.println(prefix + "F: " + report.getFScore());
             //System.out.println("A: " + report.getAccuracy());
+            System.out.println(prefix + "Type accuracy: " + report.typeAccuracy);
 
             System.out.println("\n" + prefix + "Minimum error distance (km): " + dreport.getMinDistance());
             System.out.println(prefix + "Maximum error distance (km): " + dreport.getMaxDistance());
