@@ -70,48 +70,48 @@ public class TrXMLSource extends DocumentSource {
 
   private void nextTag() {
     try {
-      this.in.nextTag();
+      in.nextTag();
     } catch (XMLStreamException e) {
-      System.err.println("Error while advancing TR-XML file.");
+      System.err.println("Error while advancing TR-XML file: " + e);
     }
   }
 
   public void close() {
     try {
-      this.in.close();
+      in.close();
     } catch (XMLStreamException e) {
-      System.err.println("Error while closing TR-XML file.");
+      System.err.println("Error while closing TR-XML file: " + e);
     }
   }
 
   public boolean hasNext() {
       //try {
-          if(this.in.isEndElement() && this.in.getLocalName().equals("doc") && this.corpusWrapped) {
-              this.nextTag();
+          if(in.isEndElement() && in.getLocalName().equals("doc") && corpusWrapped) {
+              nextTag();
           }
           //} catch(XMLStreamException e) {
-          //System.err.println("Error while closing TR-XML file.");
+          //System.err.println("Error while closing TR-XML file: " + e);
           //}
-          if(this.in.getLocalName().equals("doc"))
-              TrXMLSource.this.partOfDoc = 0;
-          return this.in.isStartElement() && (this.in.getLocalName().equals("doc") || this.in.getLocalName().equals("s"));
+          if(in.getLocalName().equals("doc"))
+              partOfDoc = 0;
+          return in.isStartElement() && (in.getLocalName().equals("doc") || in.getLocalName().equals("s"));
   }
 
   public Document<Token> next() {
     //assert this.in.isStartElement() && this.in.getLocalName().equals("doc");
     String id;
-    if(TrXMLSource.this.sentsPerDocument <= 0)
+    if(sentsPerDocument <= 0)
         id = in.getAttributeValue(null, "id");
     else {
-        if(TrXMLSource.this.partOfDoc == 0)
-            TrXMLSource.this.curDocId = in.getAttributeValue(null, "id");
+        if(partOfDoc == 0)
+            curDocId = in.getAttributeValue(null, "id");
 
-        id = TrXMLSource.this.curDocId + ".p" + TrXMLSource.this.partOfDoc;
+        id = curDocId + ".p" + partOfDoc;
     }
-    if(this.in.getLocalName().equals("doc"))
-        TrXMLSource.this.nextTag();
+    if(in.getLocalName().equals("doc"))
+        nextTag();
 
-    return new Document(id) {
+    return new Document<Token>(id) {
       private static final long serialVersionUID = 42L;
       public Iterator<Sentence<Token>> iterator() {
         return new SentenceIterator() {
@@ -139,13 +139,17 @@ public class TrXMLSource extends DocumentSource {
                 String name = in.getLocalName();
  
                 if (name.equals("w")) {
-                  tokens.add(new SimpleToken(in.getAttributeValue(null, "tok")));
+                  String token = in.getAttributeValue(null, "tok");
+                  //System.err.println("Adding token: " + token);
+                  tokens.add(new SimpleToken(token));
                 } else {
                   int spanStart = tokens.size();
                   String form = in.getAttributeValue(null, "term");
-                  List<String> formTokens = TrXMLSource.this.tokenizer.tokenize(form);
+                  //System.err.println("  Adding toponym: " + form);
+                  List<String> formTokens = tokenizer.tokenize(form);
 
-                  for (String formToken : TrXMLSource.this.tokenizer.tokenize(form)) {
+                  for (String formToken : formTokens) {
+                    //System.err.println("  Adding toponym token: " + formToken);
                     tokens.add(new SimpleToken(formToken));
                   }
 
@@ -168,6 +172,7 @@ public class TrXMLSource extends DocumentSource {
 
                       double lat = Double.parseDouble(in.getAttributeValue(null, "lat"));
                       double lng = Double.parseDouble(in.getAttributeValue(null, "long"));
+                      //System.err.println("    Reading candidate at (" + lat + ", " + lng + ")");
                       Region region = new PointRegion(Coordinate.fromDegrees(lat, lng));
                       locations.add(new Location(form, region));
                       // Skip to end tag, skipping over any representatives
@@ -187,14 +192,14 @@ public class TrXMLSource extends DocumentSource {
                 TrXMLSource.this.nextTag();
               }
             } catch (XMLStreamException e) {
-              System.err.println("Error while reading TR-XML file.");
+              System.err.println("Error while reading TR-XML file: " + e);
             }
 
             TrXMLSource.this.nextTag();
             sentNumber++;
             if(sentNumber == TrXMLSource.this.sentsPerDocument)
                 TrXMLSource.this.partOfDoc++;
-            return new SimpleSentence(id, tokens, toponymSpans);           
+            return new SimpleSentence(id, tokens, toponymSpans);
           }
         };
       }
