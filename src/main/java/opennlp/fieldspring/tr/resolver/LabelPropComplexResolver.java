@@ -23,7 +23,7 @@ public class LabelPropComplexResolver extends Resolver {
         cellDistributions = new HashMap<String, Map<Integer, Double> >();
 
         try {
-            BufferedReader in = new BufferedReader(new FileReader(pathToGraph));
+            BufferedReader in = IOUtil.createBufferedReader(pathToGraph);
 
             String curLine;
             while(true) {

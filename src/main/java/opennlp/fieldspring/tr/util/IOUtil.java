@@ -16,6 +16,8 @@
 package opennlp.fieldspring.tr.util;
 
 import java.io.*;
+import java.util.zip.*;
+import org.apache.commons.compress.compressors.bzip2.*;
 
 /**
  * Handy methods for interacting with the file system and running commands.
@@ -109,4 +111,32 @@ public class IOUtil {
 	}
     }
 
+    /**
+     * Create a buffered reader from a file. If the file ends with .bz2 or .gz,
+     * it is automatically uncompressed.
+     */
+    public static BufferedReader createBufferedReader(File file) throws IOException {
+        // It is important to insert a BufferedInputStream between the
+        // basic FileInputStream and the decompressor; not doing this leads
+        // to a 100x slowdown in bzip2 decompression.
+        InputStream istream =
+          new BufferedInputStream(new FileInputStream(file));
+        InputStream cstream;
+        String fnlower = file.toString().toLowerCase();
+        if (fnlower.endsWith(".bz2"))
+          cstream = new BZip2CompressorInputStream(istream);
+        else if (fnlower.endsWith(".gz"))
+          cstream = new GZIPInputStream(istream);
+        else
+          cstream = istream;
+        return new BufferedReader(new InputStreamReader(cstream, "UTF-8"));
+    }
+
+    /**
+     * Create a buffered reader from a file. If the file ends with .bz2 or .gz,
+     * it is automatically uncompressed.
+     */
+    public static BufferedReader createBufferedReader(String file) throws IOException {
+        return createBufferedReader(new File(file));
+    }
 }

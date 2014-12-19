@@ -5,6 +5,7 @@ package opennlp.fieldspring.tr.app;
 
 import opennlp.fieldspring.tr.text.*;
 import opennlp.fieldspring.tr.text.io.*;
+import opennlp.fieldspring.tr.util.IOUtil;
 import opennlp.fieldspring.tr.text.prep.*;
 import opennlp.fieldspring.tr.topo.gaz.*;
 import java.io.*;
@@ -69,13 +70,13 @@ public class ImportCorpus extends BaseApp {
 
         System.out.print("Reading raw corpus from " + corpusInputPath + " ...");
         StoredCorpus corpus = Corpus.createStoredCorpus();
+        File corpusInputFile = new File(corpusInputPath);
         if(corpusFormat == CORPUS_FORMAT.TRCONLL) {
-            File corpusInputFile = new File(corpusInputPath);
             if(useGoldToponyms) {
                 if(corpusInputFile.isDirectory())
                     corpus.addSource(new CandidateRepopulator(new TrXMLDirSource(new File(corpusInputPath), tokenizer, sentsPerDocument), gnGaz));
                 else
-                    corpus.addSource(new CandidateRepopulator(new TrXMLSource(new BufferedReader(new FileReader(corpusInputPath)), tokenizer, sentsPerDocument), gnGaz));
+                    corpus.addSource(new CandidateRepopulator(new TrXMLSource(IOUtil.createBufferedReader(corpusInputPath), tokenizer, sentsPerDocument), gnGaz));
             }
             else {
                 if(corpusInputFile.isDirectory())
@@ -84,23 +85,23 @@ public class ImportCorpus extends BaseApp {
                            recognizer, gnGaz, null));
                 else
                     corpus.addSource(new ToponymAnnotator(
-                                                          new ToponymRemover(new TrXMLSource(new BufferedReader(new FileReader(corpusInputPath)), tokenizer, sentsPerDocument)),
+                                                          new ToponymRemover(new TrXMLSource(IOUtil.createBufferedReader(corpusInputPath), tokenizer, sentsPerDocument)),
                            recognizer, gnGaz, null));
             }
         }
         else if(corpusFormat == CORPUS_FORMAT.TOPOWIKITEXT) {
             corpus.addSource(new ToponymWikiSource(
-                new BufferedReader(new FileReader(corpusInputPath)),
+                IOUtil.createBufferedReader(corpusInputPath),
                 divider, tokenizer, gnGaz, false));
         }
         else if(corpusFormat == CORPUS_FORMAT.GEOTEXT) {
             corpus.addSource(new ToponymAnnotator(new GeoTextSource(
-                new BufferedReader(new FileReader(corpusInputPath)), tokenizer),
+                IOUtil.createBufferedReader(corpusInputPath), tokenizer),
                 recognizer, gnGaz, null));
         }
-	else if (corpusInputPath.endsWith("txt")) {
+	else if (!corpusInputFile.isDirectory()) {
             corpus.addSource(new ToponymAnnotator(new PlainTextSource(
-                             new BufferedReader(new FileReader(corpusInputPath)), divider, tokenizer, corpusInputPath),
+                             IOUtil.createBufferedReader(corpusInputPath), divider, tokenizer, corpusInputPath),
                 recognizer, gnGaz, null));
 	}
         else {

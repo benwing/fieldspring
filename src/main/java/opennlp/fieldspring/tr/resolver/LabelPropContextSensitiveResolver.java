@@ -39,7 +39,7 @@ public class LabelPropContextSensitiveResolver extends Resolver {
         regionDistributions = new HashMap<Integer, HashMap<Integer, Double> >();
 
         try {
-            BufferedReader in = new BufferedReader(new FileReader(pathToGraph));
+            BufferedReader in = IOUtil.createBufferedReader(pathToGraph);
 
             String curLine;
             while(true) {

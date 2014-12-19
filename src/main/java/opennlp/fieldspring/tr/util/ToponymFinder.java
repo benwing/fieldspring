@@ -50,7 +50,7 @@ public class ToponymFinder {
 
 
 	public static void main(String[] args) throws Exception {
-		ToponymFinder finder = new ToponymFinder(new BufferedReader(new FileReader(args[0]/*"TheStoryTemp.txt"*/)),args[1]/*"data/gazetteers/US.ser.gz"*/);
+		ToponymFinder finder = new ToponymFinder(IOUtil.createBufferedReader(args[0]/*"TheStoryTemp.txt"*/), args[1]/*"data/gazetteers/US.ser.gz"*/);
 //		long startTime = System.currentTimeMillis();
 		finder.find();
 //		long stopTime = System.currentTimeMillis();

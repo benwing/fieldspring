@@ -31,7 +31,7 @@ public class ImportGazetteer extends BaseApp {
             zis.close();
         }
         else {
-            gnGaz = new GeoNamesGazetteer(new BufferedReader(new FileReader(gazInputPath)), runKMeans);
+            gnGaz = new GeoNamesGazetteer(IOUtil.createBufferedReader(gazInputPath), runKMeans);
         }
 
         System.out.println("Done.");

@@ -19,8 +19,7 @@ public class GeoTextSource extends DocumentSource {
   private int curDocIndex = 0;
   
 
-  public GeoTextSource(Reader reader, Tokenizer tokenizer) throws Exception {
-    BufferedReader breader = new BufferedReader(reader);
+  public GeoTextSource(BufferedReader breader, Tokenizer tokenizer) throws Exception {
     this.tokenizer = tokenizer;
 
     this.documents = new ArrayList<GeoTextDocument>();

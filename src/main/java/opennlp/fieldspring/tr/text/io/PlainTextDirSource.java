@@ -19,6 +19,7 @@ import opennlp.fieldspring.tr.text.DocumentSource;
 import opennlp.fieldspring.tr.text.Token;
 import opennlp.fieldspring.tr.text.prep.SentenceDivider;
 import opennlp.fieldspring.tr.text.prep.Tokenizer;
+import opennlp.fieldspring.tr.util.IOUtil;
 
 /**
  * @author abhimanu kumar
@@ -39,7 +40,7 @@ public class PlainTextDirSource extends DocumentSource {
 		files=new Vector<File>();
 		FilenameFilter filter=new FilenameFilter() {
 			public boolean accept(File dir, String name) {
-				return name.endsWith(".txt");
+				return name.endsWith(".txt") || name.endsWith(".txt.gz") || name.endsWith(".txt.bz2");
 			}
 		};
 		listFiles(directory,filter);
@@ -72,7 +73,7 @@ public class PlainTextDirSource extends DocumentSource {
 			}
 			if (this.currentIdx < this.files.size()) {
                             File currentFile = this.files.get(this.currentIdx);
-                            this.current = new PlainTextSource(new BufferedReader(new FileReader(currentFile)), this.divider, this.tokenizer, currentFile.getName());
+                            this.current = new PlainTextSource(IOUtil.createBufferedReader(currentFile), this.divider, this.tokenizer, currentFile.getName());
 			}
 		} catch (IOException e) {
 			System.err.println("Error while reading text file "+this.files.get(this.currentIdx).getName());

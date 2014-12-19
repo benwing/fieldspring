@@ -43,7 +43,7 @@ public class EvaluateCorpus extends BaseApp {
         else {// if(getXMLInputPath() != null) {
             Tokenizer tokenizer = new OpenNLPTokenizer();
             systemCorpus = Corpus.createStoredCorpus();
-            systemCorpus.addSource(new CorpusXMLSource(new BufferedReader(new FileReader(currentRun.getXMLInputPath())),
+            systemCorpus.addSource(new CorpusXMLSource(IOUtil.createBufferedReader(currentRun.getXMLInputPath()),
                                                        tokenizer));
             systemCorpus.setFormat(currentRun.getCorpusFormat()==null?CORPUS_FORMAT.PLAIN:currentRun.getCorpusFormat());
             systemCorpus.load();

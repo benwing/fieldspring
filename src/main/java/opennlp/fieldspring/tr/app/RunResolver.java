@@ -40,7 +40,7 @@ public class RunResolver extends BaseApp {
             if(goldFile.isDirectory())
                 goldCorpus.addSource(new TrXMLDirSource(goldFile, tokenizer));
             else
-                goldCorpus.addSource(new TrXMLSource(new BufferedReader(new FileReader(goldFile)), tokenizer));
+                goldCorpus.addSource(new TrXMLSource(IOUtil.createBufferedReader(goldFile), tokenizer));
             goldCorpus.setFormat(CORPUS_FORMAT.TRCONLL);
             goldCorpus.load();
             System.out.println("done.");
@@ -69,12 +69,11 @@ public class RunResolver extends BaseApp {
             gazList.add(otherGaz);
             Gazetteer multiGaz = new MultiGazetteer(gazList);
             /*trainCorpus.addSource(new ToponymAnnotator(new PlainTextSource(
-                    new BufferedReader(new FileReader(currentRun.getAdditionalInputPath())), new OpenNLPSentenceDivider(), tokenizer),
+                    IOUtil.createBufferedReader(currentRun.getAdditionalInputPath()), new OpenNLPSentenceDivider(), tokenizer),
                     recognizer,
                     multiGaz));*/
             trainCorpus.addSource(new ToponymAnnotator(new GigawordSource(
-                    new BufferedReader(new InputStreamReader(
-                    new GZIPInputStream(new FileInputStream(currentRun.getAdditionalInputPath())))), 10, 40000),
+                    IOUtil.createBufferedReader(currentRun.getAdditionalInputPath()), 10, 40000),
                     recognizer,
                     multiGaz));
             trainCorpus.addSource(new TrXMLDirSource(new File(currentRun.getInputPath()), tokenizer));

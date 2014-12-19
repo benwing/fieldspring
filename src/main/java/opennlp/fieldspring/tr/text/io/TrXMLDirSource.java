@@ -37,6 +37,7 @@ import opennlp.fieldspring.tr.text.Document;
 import opennlp.fieldspring.tr.text.DocumentSource;
 import opennlp.fieldspring.tr.text.Token;
 import opennlp.fieldspring.tr.text.prep.Tokenizer;
+import opennlp.fieldspring.tr.util.IOUtil;
 
 public class TrXMLDirSource extends DocumentSource {
   private final Tokenizer tokenizer;
@@ -54,7 +55,7 @@ public class TrXMLDirSource extends DocumentSource {
     this.sentsPerDocument = sentsPerDocument;
     File[] files = directory.listFiles(new FilenameFilter() {
       public boolean accept(File dir, String name) {
-        return name.endsWith(".xml");
+        return name.endsWith(".xml") || name.endsWith(".xml.gz") || name.endsWith(".xml.bz2");
       }
     });
 
@@ -71,12 +72,12 @@ public class TrXMLDirSource extends DocumentSource {
         this.current.close();
       }
       if (this.currentIdx < this.files.length) {
-        this.current = new TrXMLSource(new BufferedReader(new FileReader(this.files[this.currentIdx])), this.tokenizer, this.sentsPerDocument);
+        this.current = new TrXMLSource(IOUtil.createBufferedReader(this.files[this.currentIdx]), this.tokenizer, this.sentsPerDocument);
       }
     } catch (XMLStreamException e) {
-      System.err.println("Error while reading TR-XML directory file.");
-    } catch (FileNotFoundException e) {
-      System.err.println("Error while reading TR-XML directory file.");
+      System.err.println("Error while reading TR-XML directory file: " + e);
+    } catch (IOException e) {
+      System.err.println("Error while reading TR-XML directory file: " + e);
     }
   }
 

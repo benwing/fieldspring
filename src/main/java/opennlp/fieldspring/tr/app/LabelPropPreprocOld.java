@@ -82,7 +82,7 @@ public class LabelPropPreprocOld extends BaseApp {
     private static Set<String> buildStoplist(String stoplistFilename) throws Exception {
         Set<String> stoplist = new HashSet<String>();
 
-        BufferedReader in = new BufferedReader(new FileReader(stoplistFilename));
+        BufferedReader in = IOUtil.createBufferedReader(stoplistFilename);
 
         String curLine;
         while(true) {
@@ -107,7 +107,7 @@ public class LabelPropPreprocOld extends BaseApp {
         int docCount = 0;
         Map<Integer, Map<Integer, Integer> > countMatrix = new HashMap<Integer, Map<Integer, Integer> >();
 
-        BufferedReader wikiIn = new BufferedReader(new FileReader(wikiFilename));
+        BufferedReader wikiIn = IOUtil.createBufferedReader(wikiFilename);
 
         boolean skip = true;
 

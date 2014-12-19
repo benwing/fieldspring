@@ -16,21 +16,19 @@
 package opennlp.fieldspring.tr.topo.gaz;
 
 import java.io.File;
-import java.io.FileInputStream;
 import java.io.FileNotFoundException;
-import java.io.InputStreamReader;
 import java.io.IOException;
 import java.io.BufferedReader;
-import java.util.zip.GZIPInputStream;
 
 import opennlp.fieldspring.tr.topo.Coordinate;
 import opennlp.fieldspring.tr.topo.Location;
 import opennlp.fieldspring.tr.topo.PointRegion;
 import opennlp.fieldspring.tr.topo.Region;
+import opennlp.fieldspring.tr.util.IOUtil;
 
 public class GeoNamesReader extends GazetteerLineReader {
   public GeoNamesReader(File file) throws FileNotFoundException, IOException {
-    this(new BufferedReader(new InputStreamReader(new GZIPInputStream(new FileInputStream(file)))));
+    this(IOUtil.createBufferedReader(file));
   }
 
   public GeoNamesReader(BufferedReader reader)
