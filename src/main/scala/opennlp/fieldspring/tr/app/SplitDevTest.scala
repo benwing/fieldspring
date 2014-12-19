@@ -14,7 +14,7 @@ object SplitDevTest extends App {
   devDir.mkdir
   testDir.mkdir
 
-  val files = dir.listFiles
+  val files = dir.listFiles.sortBy(_.getName)
 
   var i = 1
   for(file <- files) {
