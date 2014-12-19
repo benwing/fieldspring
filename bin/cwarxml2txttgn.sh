@@ -11,5 +11,5 @@ for f in $indir/*.xml
 do
   filename=$(basename $f)
   filename=${filename%.*}
-  grep '<milestone unit="sentence"' $f | sed -re 's/tgn,([^"]+)">([^<]+)/>tgn,\1-\2-]]/' | sed -re 's/tgn,([^"]+)-(\w+) (\w+)-]]/tgn,\1-\2-\3-]]/' | sed 's/<[^<>]*>//g' > $outdir/$filename.txt
+  grep '<milestone unit="sentence"' $f | perl -pe 's/<placeName[^>]*tgn,([0-9]+)"[^>]*>([^<]+)/<placeName>tgn,$1-$2-]]/g' | perl -pe 's/tgn,([^"]+)-(\w+) (\w+)-]]/tgn,\1-\2-\3-]]/g' | perl -pe 's/<[^<>]*>//g' > $outdir/$filename.txt
 done
